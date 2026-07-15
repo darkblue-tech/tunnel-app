@@ -26,9 +26,19 @@ public partial class App : Application
                 DataContext = new MainWindowViewModel()
             };
 
-            // Don't show the window immediately to start in tray
-            // but for MVP we can show it
             desktop.MainWindow = _mainWindow;
+
+            var args = Environment.GetCommandLineArgs();
+            bool startMinimized = false;
+            foreach (var arg in args)
+            {
+                if (arg == "--minimized") startMinimized = true;
+            }
+
+            if (!startMinimized)
+            {
+                _mainWindow.Show();
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -40,6 +50,7 @@ public partial class App : Application
         {
             _mainWindow.Show();
             _mainWindow.WindowState = WindowState.Normal;
+            _mainWindow.Activate();
         }
     }
 

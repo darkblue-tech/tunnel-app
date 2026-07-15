@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Net.Client;
+using Client.Desktop.Services;
 
 namespace Client.Desktop.Grpc;
 
@@ -11,7 +12,7 @@ namespace Client.Desktop.Grpc;
 /// gRPC client for tunnel control channel.
 /// Implements type-safe bi-directional stream communication with server.
 /// </summary>
-internal class ControlChannelGrpcClient : IAsyncDisposable
+public class ControlChannelGrpcClient : IControlChannelClient
 {
     private GrpcChannel? _channel;
     private TunnelControl.TunnelControlClient? _client;
@@ -42,9 +43,6 @@ internal class ControlChannelGrpcClient : IAsyncDisposable
 
         // Start bi-directional stream
         _streamCall = _client.StreamControlMessages(cancellationToken: cancellationToken);
-        
-        // Start receive loop in background
-        _ = Task.Run(() => ReceiveLoopAsync(cancellationToken), cancellationToken);
     }
 
     /// <summary>
@@ -152,7 +150,7 @@ internal class ControlChannelGrpcClient : IAsyncDisposable
     /// Receives response from server.
     /// Returns null when stream is closed.
     /// </summary>
-    public async Task<ControlResponse?> ReceiveAsync(CancellationToken cancellationToken = default)
+    public async Task<ControlMessageDto?> ReceiveAsync(CancellationToken cancellationToken = default)
     {
         if (_streamCall?.ResponseStream == null)
             throw new InvalidOperationException("Not connected to gRPC server");
@@ -161,7 +159,48 @@ internal class ControlChannelGrpcClient : IAsyncDisposable
         {
             if (await _streamCall.ResponseStream.MoveNext(cancellationToken))
             {
-                return _streamCall.ResponseStream.Current;
+                var resp = _streamCall.ResponseStream.Current;
+                var dto = new ControlMessageDto();
+                
+                switch (resp.PayloadCase)
+                {
+                    case ControlResponse.PayloadOneofCase.AuthOk:
+                        dto.Type = "auth_ok";
+                        dto.ClientId = resp.AuthOk.ClientId;
+                        break;
+                    case ControlResponse.PayloadOneofCase.AuthError:
+                        dto.Type = "auth_error";
+                        dto.Error = resp.AuthError.Error;
+                        break;
+                    case ControlResponse.PayloadOneofCase.Pong:
+                        dto.Type = "pong";
+                        break;
+                    case ControlResponse.PayloadOneofCase.RegisterAck:
+                        dto.Type = "register_ack";
+                        dto.PublicUrl = resp.RegisterAck.PublicUrl;
+                        break;
+                    case ControlResponse.PayloadOneofCase.RegisterError:
+                        dto.Type = "register_error";
+                        dto.Error = resp.RegisterError.Error;
+                        break;
+                    case ControlResponse.PayloadOneofCase.OpenStream:
+                        dto.Type = "open_stream";
+                        dto.StreamId = resp.OpenStream.StreamId;
+                        break;
+                    case ControlResponse.PayloadOneofCase.StreamData:
+                        dto.Type = "stream_data";
+                        dto.StreamId = resp.StreamData.StreamId;
+                        dto.Payload = resp.StreamData.Payload.ToByteArray();
+                        break;
+                    case ControlResponse.PayloadOneofCase.StreamClose:
+                        dto.Type = "stream_close";
+                        dto.StreamId = resp.StreamClose.StreamId;
+                        break;
+                    default:
+                        dto.Type = "unknown";
+                        break;
+                }
+                return dto;
             }
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled)
@@ -172,24 +211,7 @@ internal class ControlChannelGrpcClient : IAsyncDisposable
         return null;
     }
 
-    private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            while (!cancellationToken.IsCancellationRequested && await ReceiveAsync(cancellationToken) != null)
-            {
-                // Responses are handled by calling ReceiveAsync explicitly
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected when cancellation is requested
-        }
-        catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled)
-        {
-            // Stream ended normally
-        }
-    }
+
 
     /// <summary>
     /// Closes the connection gracefully and releases resources.
