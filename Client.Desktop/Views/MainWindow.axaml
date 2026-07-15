@@ -28,7 +28,11 @@
                 </Border>
             </StackPanel>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <CheckBox Content="Run at startup" 
+                          IsChecked="{Binding RunAtStartup}" 
+                          Foreground="#AAFFFFFF" 
+                          Margin="0,0,10,0"/>
                 <Button Content="Connect &amp; Fetch" 
                         Command="{Binding LoginAndLoadTunnelsCommand}" 
                         IsVisible="{Binding !IsAuthenticated}" 
