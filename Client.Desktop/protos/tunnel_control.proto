@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package darktunnel;
+
+option csharp_namespace = "Client.Desktop.Grpc";
+
+// Bi-directional control channel for tunnel management via gRPC.
+// Client initiates connection and maintains a streaming connection to send/receive control messages.
+
+service TunnelControl {
+  // StreamControlMessages: bi-directional stream for client control channel.
+  // Client sends: auth, ping, register_tunnel, stream_data, stream_close.
+  // Server sends: auth_ok/auth_error, pong, register_ack/register_error, open_stream, stream_data, stream_close, rate_limited.
+  rpc StreamControlMessages (stream ControlMessage) returns (stream ControlResponse) {}
+}
+
+message ControlMessage {
+  oneof payload {
+    AuthMessage auth = 1;
+    PingMessage ping = 2;
+    RegisterTunnelMessage register_tunnel = 3;
+    StreamDataMessage stream_data = 4;
+    StreamCloseMessage stream_close = 5;
+  }
+}
+
+message ControlResponse {
+  oneof payload {
+    AuthOkResponse auth_ok = 1;
+    AuthErrorResponse auth_error = 2;
+    PongResponse pong = 3;
+    RegisterAckResponse register_ack = 4;
+    RegisterErrorResponse register_error = 5;
+    OpenStreamResponse open_stream = 6;
+    StreamDataResponse stream_data = 7;
+    StreamCloseResponse stream_close = 8;
+    RateLimitedResponse rate_limited = 9;
+    StreamErrorResponse stream_error = 10;
+  }
+}
+
+// Client -> Server messages
+
+message AuthMessage {
+  string client_name = 1;
+  string access_token = 2; // id_token or server_token
+}
+
+message PingMessage {
+  // Empty heartbeat
+}
+
+message RegisterTunnelMessage {
+  string subdomain = 1;
+  string local_host = 2;
+  int32 local_port = 3;
+  int32 public_port = 4; // 0 = auto-allocate
+}
+
+message StreamDataMessage {
+  string stream_id = 1;
+  bytes payload = 2; // Direct binary, not base64
+}
+
+message StreamCloseMessage {
+  string stream_id = 1;
+}
+
+// Server -> Client responses
+
+message AuthOkResponse {
+  string client_id = 1;
+  string subject = 2; // JWT subject claim
+  string mode = 3; // "legacy" for unauthenticated dev mode
+}
+
+message AuthErrorResponse {
+  string error = 1;
+  string details = 2;
+}
+
+message PongResponse {
+  int64 ts = 1; // unix milliseconds
+}
+
+message RegisterAckResponse {
+  string subdomain = 1;
+  string local_host = 2;
+  int32 local_port = 3;
+  int32 public_port = 4;
+  string public_url = 5;
+}
+
+message RegisterErrorResponse {
+  string error = 1;
+  string details = 2;
+}
+
+message OpenStreamResponse {
+  string stream_id = 1;
+  string subdomain = 2;
+  int32 local_port = 3;
+  RemoteEndpoint remote = 4;
+}
+
+message StreamDataResponse {
+  string stream_id = 1;
+  bytes payload = 2; // Direct binary
+}
+
+message StreamCloseResponse {
+  string stream_id = 1;
+}
+
+message RateLimitedResponse {
+  string error = 1; // "too_many_messages"
+}
+
+message StreamErrorResponse {
+  string error = 1;
+  string stream_id = 2;
+}
+
+message RemoteEndpoint {
+  string address = 1;
+  int32 port = 2;
+}
