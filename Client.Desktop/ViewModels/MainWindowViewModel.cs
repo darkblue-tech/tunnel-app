@@ -25,6 +25,15 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         _authService = new AuthService();
         _apiService = new ApiService(_authService);
+        _runAtStartup = AutostartHelper.IsAutostartEnabled();
+    }
+
+    [ObservableProperty]
+    private bool _runAtStartup;
+
+    partial void OnRunAtStartupChanged(bool value)
+    {
+        AutostartHelper.SetAutostart(value);
     }
 
     [RelayCommand]

@@ -52,91 +52,103 @@ public class TunnelEngine
 
     private async Task ConnectLoopAsync(string serverUrl, string subdomain, string localHost, int localPort, int publicPort, string serverToken)
     {
-        Log($"Connecting control channel to {serverUrl}...");
-
-        using var webSocket = new ClientWebSocket();
-        var sendLock = new SemaphoreSlim(1, 1);
         var streams = new ConcurrentDictionary<string, LocalStreamSession>();
-
-        await webSocket.ConnectAsync(new Uri(serverUrl), _lifetime!.Token);
-
-        await SendJsonAsync(webSocket, new
+        IControlChannelClient? client = null;
+        
+        var baseUri = new Uri(serverUrl);
+        var httpsUri = new Uri($"https://{baseUri.Host}:{baseUri.Port}");
+        
+        // Smart Fallback
+        Log($"Attempting QUIC connection to {httpsUri}...");
+        try
         {
-            type = "auth",
-            clientName = "desktop-avalonia",
-            access_token = serverToken
-        }, sendLock);
+            var quicClient = new QuicControlChannelClient();
+            await quicClient.ConnectAsync(httpsUri, _lifetime!.Token);
+            client = quicClient;
+            Log("Connected via QUIC");
+        }
+        catch (Exception ex)
+        {
+            Log($"QUIC failed ({ex.Message}), falling back to gRPC...");
+            try
+            {
+                var grpcClient = new Client.Desktop.Grpc.ControlChannelGrpcClient();
+                await grpcClient.ConnectAsync(httpsUri, _lifetime.Token);
+                client = grpcClient;
+                Log("Connected via gRPC");
+            }
+            catch (Exception ex2)
+            {
+                Log($"gRPC failed ({ex2.Message}), falling back to WebSocket...");
+                var wsClient = new WebSocketControlChannelClient();
+                await wsClient.ConnectAsync(new Uri(serverUrl), _lifetime.Token);
+                client = wsClient;
+                Log("Connected via WebSocket");
+            }
+        }
+
+        await client.SendAuthAsync("desktop-avalonia", serverToken);
 
         _ = Task.Run(async () =>
         {
-            while (!_lifetime.IsCancellationRequested && webSocket.State == WebSocketState.Open)
+            while (!_lifetime.IsCancellationRequested)
             {
                 try
                 {
                     await Task.Delay(TimeSpan.FromSeconds(20), _lifetime.Token);
-                    if (webSocket.State != WebSocketState.Open) break;
-                    await SendJsonAsync(webSocket, new { type = "ping" }, sendLock);
+                    await client.SendPingAsync();
                 }
                 catch (OperationCanceledException) { break; }
+                catch { break; }
             }
         });
 
         var isRegistered = false;
-        var controlBuffer = new byte[16 * 1024];
 
-        while (webSocket.State == WebSocketState.Open && !_lifetime.IsCancellationRequested)
+        while (!_lifetime.IsCancellationRequested)
         {
-            var message = await ReceiveTextMessageAsync(webSocket, controlBuffer, _lifetime.Token);
+            var message = await client.ReceiveAsync(_lifetime.Token);
             if (message is null) break;
 
-            using var doc = JsonDocument.Parse(message);
-            var root = doc.RootElement;
-            var type = root.GetProperty("type").GetString();
+            var type = message.Type;
 
             switch (type)
             {
                 case "auth_ok":
-                    Log($"Auth OK: {root.GetProperty("clientId").GetString()}");
+                    Log($"Auth OK: {message.ClientId}");
                     if (!isRegistered)
                     {
-                        await SendJsonAsync(webSocket, new
-                        {
-                            type = "register_tunnel",
-                            subdomain,
-                            localHost,
-                            localPort,
-                            publicPort
-                        }, sendLock);
+                        await client.SendRegisterTunnelAsync(subdomain, localHost, localPort, publicPort);
                         Log($"Registered tunnel request for {subdomain}.tunnel.darkblue.tech:{publicPort} -> {localHost}:{localPort}");
                         isRegistered = true;
                     }
                     break;
                 case "auth_error":
-                    Log($"Auth failed: {root.GetProperty("error").GetString()}");
+                    Log($"Auth failed: {message.Error}");
                     _intentionalStop = true;
                     _lifetime.Cancel();
                     return;
                 case "pong":
                     break;
                 case "rate_limited":
-                    Log($"Rate limited by server: {root.GetProperty("error").GetString()}");
+                    Log($"Rate limited by server: {message.Error}");
                     break;
                 case "register_ack":
-                    var publicUrl = root.GetProperty("publicUrl").GetString() ?? "";
+                    var publicUrl = message.PublicUrl ?? "";
                     Log($"Tunnel ready: {publicUrl}");
                     OnConnected?.Invoke(publicUrl);
                     break;
                 case "register_error":
-                    Log($"Tunnel registration failed: {root.GetProperty("error").GetString()}");
+                    Log($"Tunnel registration failed: {message.Error}");
                     _intentionalStop = true;
                     _lifetime.Cancel();
                     return;
                 case "open_stream":
                     {
-                        var streamId = root.GetProperty("streamId").GetString();
+                        var streamId = message.StreamId;
                         if (streamId is null) break;
 
-                        var session = new LocalStreamSession(streamId, localHost, localPort, webSocket, sendLock, streams, Log);
+                        var session = new LocalStreamSession(streamId, localHost, localPort, client, streams, Log);
                         if (streams.TryAdd(streamId, session))
                         {
                             _ = session.StartAsync();
@@ -146,19 +158,19 @@ public class TunnelEngine
                     }
                 case "stream_data":
                     {
-                        var streamId = root.GetProperty("streamId").GetString();
-                        var payloadB64 = root.GetProperty("payload_b64").GetString();
-                        if (streamId is null || payloadB64 is null) break;
+                        var streamId = message.StreamId;
+                        var payload = message.Payload;
+                        if (streamId is null || payload is null) break;
 
                         if (streams.TryGetValue(streamId, out var session))
                         {
-                            await session.WriteToLocalAsync(Convert.FromBase64String(payloadB64));
+                            await session.WriteToLocalAsync(payload);
                         }
                         break;
                     }
                 case "stream_close":
                     {
-                        var streamId = root.GetProperty("streamId").GetString();
+                        var streamId = message.StreamId;
                         if (streamId is null) break;
 
                         if (streams.TryRemove(streamId, out var session))
@@ -169,7 +181,7 @@ public class TunnelEngine
                         break;
                     }
                 default:
-                    Log($"Unknown control message: {message}");
+                    Log($"Unknown control message: {type}");
                     break;
             }
         }
@@ -178,6 +190,8 @@ public class TunnelEngine
         {
             await kv.Value.CloseAsync();
         }
+        
+        await client.DisposeAsync();
     }
 
     public void StopTunnel()
@@ -189,37 +203,7 @@ public class TunnelEngine
 
     private void Log(string message) => OnLog?.Invoke($"[{DateTime.Now:HH:mm:ss}] {message}");
 
-    private static async Task<string?> ReceiveTextMessageAsync(WebSocket webSocket, byte[] buffer, CancellationToken cancellationToken)
-    {
-        using var ms = new MemoryStream();
-        while (true)
-        {
-            var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
-            if (result.MessageType == WebSocketMessageType.Close) return null;
 
-            ms.Write(buffer, 0, result.Count);
-            if (result.EndOfMessage) return Encoding.UTF8.GetString(ms.ToArray());
-        }
-    }
-
-    private static async Task SendJsonAsync(ClientWebSocket webSocket, object payload, SemaphoreSlim sendLock)
-    {
-        var json = JsonSerializer.Serialize(payload);
-        var bytes = Encoding.UTF8.GetBytes(json);
-
-        await sendLock.WaitAsync();
-        try
-        {
-            if (webSocket.State == WebSocketState.Open)
-            {
-                await webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
-            }
-        }
-        finally
-        {
-            sendLock.Release();
-        }
-    }
 }
 
 internal sealed class LocalStreamSession
@@ -227,8 +211,7 @@ internal sealed class LocalStreamSession
     private readonly string _streamId;
     private readonly string _localHost;
     private readonly int _localPort;
-    private readonly ClientWebSocket _controlSocket;
-    private readonly SemaphoreSlim _sendLock;
+    private readonly IControlChannelClient _client;
     private readonly ConcurrentDictionary<string, LocalStreamSession> _registry;
     private readonly Action<string> _log;
     private readonly System.Threading.Channels.Channel<byte[]> _writeChannel;
@@ -238,13 +221,12 @@ internal sealed class LocalStreamSession
     private bool _closeNotified;
     private int _started;
 
-    public LocalStreamSession(string streamId, string localHost, int localPort, ClientWebSocket controlSocket, SemaphoreSlim sendLock, ConcurrentDictionary<string, LocalStreamSession> registry, Action<string> log)
+    public LocalStreamSession(string streamId, string localHost, int localPort, IControlChannelClient client, ConcurrentDictionary<string, LocalStreamSession> registry, Action<string> log)
     {
         _streamId = streamId;
         _localHost = localHost;
         _localPort = localPort;
-        _controlSocket = controlSocket;
-        _sendLock = sendLock;
+        _client = client;
         _registry = registry;
         _log = log;
         _writeChannel = System.Threading.Channels.Channel.CreateUnbounded<byte[]>();
@@ -286,27 +268,20 @@ internal sealed class LocalStreamSession
             var read = await _localStream.ReadAsync(buffer, 0, buffer.Length, _cts.Token);
             if (read <= 0) break;
 
-            var payload = Convert.ToBase64String(buffer, 0, read);
+            var payload = new byte[read];
+            Array.Copy(buffer, payload, read);
             
-            var json = JsonSerializer.Serialize(new
-            {
-                type = "stream_data",
-                streamId = _streamId,
-                payload_b64 = payload
-            });
-            var bytes = Encoding.UTF8.GetBytes(json);
-
-            await _sendLock.WaitAsync(_cts.Token);
             try
             {
-                if (_controlSocket.State == WebSocketState.Open)
-                {
-                    await _controlSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
-                }
+                await _client.SendStreamDataAsync(_streamId, payload);
             }
-            finally
+            catch (Exception ex)
             {
-                _sendLock.Release();
+                if (!_cts.IsCancellationRequested)
+                {
+                    _log($"Stream {_streamId} send error: {ex.Message}");
+                    break;
+                }
             }
         }
         _writeChannel.Writer.TryComplete();
@@ -353,23 +328,9 @@ internal sealed class LocalStreamSession
             _cts.Cancel();
             _writeChannel.Writer.TryComplete();
             
-            var json = JsonSerializer.Serialize(new { type = "stream_close", streamId = _streamId });
-            var bytes = Encoding.UTF8.GetBytes(json);
-            
             try
             {
-                await _sendLock.WaitAsync(TimeSpan.FromSeconds(2));
-                try
-                {
-                    if (_controlSocket.State == WebSocketState.Open)
-                    {
-                        await _controlSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
-                    }
-                }
-                finally
-                {
-                    _sendLock.Release();
-                }
+                await _client.SendStreamCloseAsync(_streamId);
             }
             catch { }
         }
