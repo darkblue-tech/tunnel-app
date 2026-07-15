@@ -8,4 +8,12 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
     }
+
+    protected override void OnClosing(Avalonia.Controls.WindowClosingEventArgs e)
+    {
+        // Don't close the window, just hide it to the system tray
+        e.Cancel = true;
+        this.Hide();
+        base.OnClosing(e);
+    }
 }

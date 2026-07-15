@@ -9,7 +9,7 @@
 
     <TrayIcon.Icons>
         <TrayIcons>
-            <TrayIcon ToolTipText="DarkTunnel Client">
+            <TrayIcon ToolTipText="DarkTunnel Client" Clicked="Show_Clicked">
                 <TrayIcon.Menu>
                     <NativeMenu>
                         <NativeMenuItem Header="Show" Click="Show_Clicked"/>
