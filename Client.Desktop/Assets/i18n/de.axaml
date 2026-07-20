@@ -1,0 +1,42 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=mscorlib">
+
+    <system:String x:Key="Str_Login">Anmelden</system:String>
+    <system:String x:Key="Str_Account">Konto</system:String>
+    <system:String x:Key="Str_Name">Name</system:String>
+    <system:String x:Key="Str_License">Lizenz</system:String>
+    <system:String x:Key="Str_EnterpriseLicense">Unternehmen (darkblue.tech)</system:String>
+    <system:String x:Key="Str_LogOut">Abmelden</system:String>
+    <system:String x:Key="Str_Preferences">Einstellungen</system:String>
+    <system:String x:Key="Str_RunAtStartup">Beim Start ausführen</system:String>
+    <system:String x:Key="Str_StartMinimized">Minimiert starten</system:String>
+    <system:String x:Key="Str_CloseToTray">In den Tray minimieren</system:String>
+    <system:String x:Key="Str_Theme">Design</system:String>
+    <system:String x:Key="Str_ThemeSystem">System</system:String>
+    <system:String x:Key="Str_ThemeLight">Hell</system:String>
+    <system:String x:Key="Str_ThemeDark">Dunkel</system:String>
+    <system:String x:Key="Str_Language">Sprache</system:String>
+    <system:String x:Key="Str_SelectedRegion">Ausgewählte Region:</system:String>
+    <system:String x:Key="Str_Tunnels">Tunnel</system:String>
+    <system:String x:Key="Str_Pull">Aktualisieren</system:String>
+    <system:String x:Key="Str_Logs">protokolle</system:String>
+    <system:String x:Key="Str_Connections">verbindungen</system:String>
+    <system:String x:Key="Str_UnknownVersion">Unbekannte Version</system:String>
+    <system:String x:Key="Str_SystemAdministrator">Systemadministrator</system:String>
+
+    <system:String x:Key="Str_Status_Disconnected">Getrennt</system:String>
+    <system:String x:Key="Str_Status_Connected">Verbunden</system:String>
+    <system:String x:Key="Str_Status_Connecting">Verbinden...</system:String>
+    <system:String x:Key="Str_Status_Authenticating">Authentifizierung...</system:String>
+    <system:String x:Key="Str_Status_AuthFailed">Authentifizierung fehlgeschlagen</system:String>
+    <system:String x:Key="Str_Status_Refreshing">Aktualisiere...</system:String>
+    <system:String x:Key="Str_Status_SessionExpired">Sitzung abgelaufen</system:String>
+
+    <system:String x:Key="Str_Tray_Show">Fenster anzeigen</system:String>
+    <system:String x:Key="Str_Tray_Exit">Beenden</system:String>
+    <system:String x:Key="Str_Tray_ConnectAll">Alle verbinden</system:String>
+    <system:String x:Key="Str_Tray_DisconnectAll">Alle trennen</system:String>
+    <system:String x:Key="Str_Tray_NotLoggedIn">Nicht angemeldet</system:String>
+    <system:String x:Key="Str_Transport">Transport</system:String>
+</ResourceDictionary>

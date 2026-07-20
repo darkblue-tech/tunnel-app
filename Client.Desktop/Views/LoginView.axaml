@@ -1,0 +1,49 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Client.Desktop.ViewModels"
+             x:Class="Client.Desktop.Views.LoginView"
+             x:DataType="vm:LoginViewModel">
+             
+    <UserControl.Styles>
+        <Style Selector="Button.BadgeBtn">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.BadgeBtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.BadgeBtn:pointerover">
+            <Setter Property="RenderTransform" Value="translateY(-3px)" />
+        </Style>
+        <Style Selector="Button.BadgeBtn:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.BadgeBtn:pressed">
+            <Setter Property="RenderTransform" Value="translateY(2px)" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid>
+        <!-- Logo -->
+        <Panel Width="400" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,180,0,0">
+            <Image Source="avares://DarkTunnel Client/Assets/Images/darktunnel_logo.png" IsVisible="{DynamicResource IsLightTheme}" RenderOptions.BitmapInterpolationMode="HighQuality"/>
+            <Image Source="avares://DarkTunnel Client/Assets/Images/darktunnel_white_logo.png" IsVisible="{DynamicResource IsDarkTheme}" RenderOptions.BitmapInterpolationMode="HighQuality"/>
+        </Panel>
+
+        <!-- Login Button -->
+        <Button Command="{Binding LoginCommand}" Classes="BadgeBtn"
+                Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,400,0,0">
+            <Svg Path="{DynamicResource LoginBadgePath}" Width="408" Height="108" />
+        </Button>
+
+        <!-- Version -->
+        <TextBlock Text="{Binding AppVersionDisplay}" 
+                   HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,40"
+                   Foreground="#999999" FontWeight="Bold" FontSize="16" />
+    </Grid>
+</UserControl>
+

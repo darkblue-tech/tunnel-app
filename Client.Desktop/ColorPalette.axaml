@@ -1,0 +1,55 @@
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=mscorlib">
+
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+            <system:Boolean x:Key="IsLightTheme">True</system:Boolean>
+            <system:Boolean x:Key="IsDarkTheme">False</system:Boolean>
+            <SolidColorBrush x:Key="BgPrimary">#E8E6E0</SolidColorBrush>
+            <SolidColorBrush x:Key="BgSecondary">#DEDACF</SolidColorBrush>
+            <SolidColorBrush x:Key="Stroke">#D5D0BF</SolidColorBrush>
+
+            <SolidColorBrush x:Key="IconPrimary">#C4B4A2</SolidColorBrush>
+            <SolidColorBrush x:Key="IconAccent">#D09A74</SolidColorBrush>
+
+            <SolidColorBrush x:Key="TextPrimary">#454545</SolidColorBrush>
+            <SolidColorBrush x:Key="TextAccent">#2B2B2B</SolidColorBrush>
+
+            <SolidColorBrush x:Key="SuccessGreen">#62B667</SolidColorBrush>
+            <SolidColorBrush x:Key="SuccessGreenBackground">#EAF4EA</SolidColorBrush>
+
+            <x:String x:Key="LoginBadgePath">avares://DarkTunnel Client/Assets/Icons/Login Badge.svg</x:String>
+            <x:String x:Key="DisconnectedBtnPath">avares://DarkTunnel Client/Assets/Icons/Disconnected Button.svg</x:String>
+            <x:String x:Key="ConnectedBtnPath">avares://DarkTunnel Client/Assets/Icons/Connected Button.svg</x:String>
+            <x:String x:Key="GraphBtnPath">avares://DarkTunnel Client/Assets/Icons/Graph Button.svg</x:String>
+            <x:String x:Key="SettingsBtnPath">avares://DarkTunnel Client/Assets/Icons/Settings Button.svg</x:String>
+            <x:String x:Key="ReturnBtnPath">avares://DarkTunnel Client/Assets/Icons/Return Button.svg</x:String>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+            <system:Boolean x:Key="IsLightTheme">False</system:Boolean>
+            <system:Boolean x:Key="IsDarkTheme">True</system:Boolean>
+            <SolidColorBrush x:Key="BgPrimary">#161616</SolidColorBrush>
+            <SolidColorBrush x:Key="BgSecondary">#222222</SolidColorBrush>
+            <SolidColorBrush x:Key="Stroke">#333333</SolidColorBrush>
+
+            <SolidColorBrush x:Key="IconPrimary">#8A8A8A</SolidColorBrush>
+            <SolidColorBrush x:Key="IconAccent">#D09A74</SolidColorBrush>
+
+            <SolidColorBrush x:Key="TextPrimary">#E0E0E0</SolidColorBrush>
+            <SolidColorBrush x:Key="TextAccent">#FFFFFF</SolidColorBrush>
+
+            <SolidColorBrush x:Key="SuccessGreen">#55B55A</SolidColorBrush>
+            <SolidColorBrush x:Key="SuccessGreenBackground">#193A1C</SolidColorBrush>
+
+            <x:String x:Key="LoginBadgePath">avares://DarkTunnel Client/Assets/Icons/Login Badge_dark.svg</x:String>
+            <x:String x:Key="DisconnectedBtnPath">avares://DarkTunnel Client/Assets/Icons/Disconnected Button_dark.svg</x:String>
+            <x:String x:Key="ConnectedBtnPath">avares://DarkTunnel Client/Assets/Icons/Connected Button.svg</x:String>
+            <x:String x:Key="GraphBtnPath">avares://DarkTunnel Client/Assets/Icons/Graph Button_dark.svg</x:String>
+            <x:String x:Key="SettingsBtnPath">avares://DarkTunnel Client/Assets/Icons/Settings Button_dark.svg</x:String>
+            <x:String x:Key="ReturnBtnPath">avares://DarkTunnel Client/Assets/Icons/Return Button_dark.svg</x:String>
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+
+</ResourceDictionary>
+

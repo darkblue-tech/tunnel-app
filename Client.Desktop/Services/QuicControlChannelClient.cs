@@ -8,6 +8,8 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
+#pragma warning disable CA1416
+
 namespace Client.Desktop.Services;
 
 public class QuicControlChannelClient : IControlChannelClient
@@ -26,11 +28,7 @@ public class QuicControlChannelClient : IControlChannelClient
         var host = uri.Host;
         var port = uri.Port > 0 ? uri.Port : 443;
         
-        // Use DNS to resolve host
-        var ips = await Dns.GetHostAddressesAsync(host, cancellationToken);
-        if (ips.Length == 0) throw new Exception($"Failed to resolve {host}");
-        
-        var endpoint = new IPEndPoint(ips[0], port);
+        var endpoint = new DnsEndPoint(host, port);
 
         var options = new QuicClientConnectionOptions
         {

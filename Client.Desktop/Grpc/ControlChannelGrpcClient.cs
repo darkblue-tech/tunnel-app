@@ -28,14 +28,19 @@ public class ControlChannelGrpcClient : IControlChannelClient
         {
             HttpHandler = new SocketsHttpHandler 
             { 
+                UseProxy = false, // Disable proxy to avoid gRPC HTTP/2 proxy issues
                 KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,
                 KeepAlivePingDelay = TimeSpan.FromSeconds(30),
                 KeepAlivePingTimeout = TimeSpan.FromSeconds(10)
             },
-            Credentials = ChannelCredentials.Insecure, // TODO: Add TLS in production
             DisposeHttpClient = true,
             MaxReceiveMessageSize = 16 * 1024 * 1024 // 16MB
         };
+
+        if (uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase))
+        {
+            channelOptions.Credentials = ChannelCredentials.Insecure;
+        }
 
         _channel = GrpcChannel.ForAddress(uri, channelOptions);
         _client = new TunnelControl.TunnelControlClient(_channel);

@@ -10,11 +10,13 @@ public class TunnelEngine
 {
     public event Action<string>? OnLog;
     public event Action? OnDisconnected;
+    public event Action? OnTokenExpired;
     public event Action<string>? OnConnected;
+    public event Action<int>? OnConnectionCountChanged;
     private CancellationTokenSource? _lifetime;
     private bool _intentionalStop;
 
-    public async Task StartTunnelAsync(string serverUrl, string subdomain, string localHost, int localPort, int publicPort, string serverToken)
+    public async Task StartTunnelAsync(string serverUrl, string subdomain, string localHost, int localPort, int publicPort, string serverToken, string transport = "Auto")
     {
         _lifetime = new CancellationTokenSource();
         _intentionalStop = false;
@@ -25,7 +27,7 @@ public class TunnelEngine
         {
             try
             {
-                await ConnectLoopAsync(serverUrl, subdomain, localHost, localPort, publicPort, serverToken);
+                await ConnectLoopAsync(serverUrl, subdomain, localHost, localPort, publicPort, serverToken, transport);
             }
             catch (Exception ex)
             {
@@ -50,53 +52,86 @@ public class TunnelEngine
         }
     }
 
-    private async Task ConnectLoopAsync(string serverUrl, string subdomain, string localHost, int localPort, int publicPort, string serverToken)
+    private async Task<(IControlChannelClient Client, ControlMessageDto FirstMsg)> TryConnectProtocolAsync(IControlChannelClient client, Uri uri, string serverToken)
+    {
+        await client.ConnectAsync(uri, _lifetime!.Token);
+        await client.SendAuthAsync("desktop-avalonia", serverToken);
+        var msg = await client.ReceiveAsync(_lifetime!.Token);
+        if (msg == null) throw new Exception("Connection closed immediately after auth");
+        return (client, msg);
+    }
+
+    private async Task ConnectLoopAsync(string serverUrl, string subdomain, string localHost, int localPort, int publicPort, string serverToken, string transport)
     {
         var streams = new ConcurrentDictionary<string, LocalStreamSession>();
         IControlChannelClient? client = null;
+        ControlMessageDto? firstMsg = null;
         
         var baseUri = new Uri(serverUrl);
         var httpsUri = new Uri($"https://{baseUri.Host}:{baseUri.Port}");
-        
-        // Smart Fallback
-        Log($"Attempting QUIC connection to {httpsUri}...");
-        try
+        var quicUri = new Uri($"https://{baseUri.Host}:5003");
+
+        var transportsToTry = transport == "Auto" 
+            ? new[] { "QUIC", "WebRTC", "gRPC", "WebSocket" }
+            : new[] { transport };
+
+        foreach (var t in transportsToTry)
         {
-            var quicClient = new QuicControlChannelClient();
-            await quicClient.ConnectAsync(httpsUri, _lifetime!.Token);
-            client = quicClient;
-            Log("Connected via QUIC");
-        }
-        catch (Exception ex)
-        {
-            Log($"QUIC failed ({ex.Message}), falling back to gRPC...");
             try
             {
-                var grpcClient = new Client.Desktop.Grpc.ControlChannelGrpcClient();
-                await grpcClient.ConnectAsync(httpsUri, _lifetime.Token);
-                client = grpcClient;
-                Log("Connected via gRPC");
+                Log($"Attempting {t} connection...");
+                if (t == "QUIC")
+                {
+                    var quicClient = new QuicControlChannelClient();
+                    var res = await TryConnectProtocolAsync(quicClient, quicUri, serverToken);
+                    client = res.Client;
+                    firstMsg = res.FirstMsg;
+                }
+                else if (t == "WebRTC")
+                {
+                    var webrtcClient = new WebRtcControlChannelClient(serverToken);
+                    var res = await TryConnectProtocolAsync(webrtcClient, baseUri, serverToken);
+                    client = res.Client;
+                    firstMsg = res.FirstMsg;
+                }
+                else if (t == "gRPC")
+                {
+                    var grpcClient = new Client.Desktop.Grpc.ControlChannelGrpcClient();
+                    var res = await TryConnectProtocolAsync(grpcClient, httpsUri, serverToken);
+                    client = res.Client;
+                    firstMsg = res.FirstMsg;
+                }
+                else if (t == "WebSocket")
+                {
+                    var wsClient = new WebSocketControlChannelClient();
+                    var res = await TryConnectProtocolAsync(wsClient, baseUri, serverToken);
+                    client = res.Client;
+                    firstMsg = res.FirstMsg;
+                }
+                
+                Log($"Connected via {t}");
+                break;
             }
-            catch (Exception ex2)
+            catch (Exception ex)
             {
-                Log($"gRPC failed ({ex2.Message}), falling back to WebSocket...");
-                var wsClient = new WebSocketControlChannelClient();
-                await wsClient.ConnectAsync(new Uri(serverUrl), _lifetime.Token);
-                client = wsClient;
-                Log("Connected via WebSocket");
+                Log($"{t} failed ({ex.Message})");
             }
         }
 
-        await client.SendAuthAsync("desktop-avalonia", serverToken);
+        if (client == null)
+        {
+            Log("All transport methods failed.");
+            return;
+        }
 
         _ = Task.Run(async () =>
         {
-            while (!_lifetime.IsCancellationRequested)
+            while (_lifetime != null && !_lifetime.IsCancellationRequested)
             {
                 try
                 {
                     await Task.Delay(TimeSpan.FromSeconds(20), _lifetime.Token);
-                    await client.SendPingAsync();
+                    if (client != null) await client.SendPingAsync();
                 }
                 catch (OperationCanceledException) { break; }
                 catch { break; }
@@ -104,10 +139,10 @@ public class TunnelEngine
         });
 
         var isRegistered = false;
+        var message = firstMsg;
 
-        while (!_lifetime.IsCancellationRequested)
+        while (_lifetime != null && !_lifetime.IsCancellationRequested)
         {
-            var message = await client.ReceiveAsync(_lifetime.Token);
             if (message is null) break;
 
             var type = message.Type;
@@ -125,6 +160,10 @@ public class TunnelEngine
                     break;
                 case "auth_error":
                     Log($"Auth failed: {message.Error}");
+                    if (message.Error == "token_expired")
+                    {
+                        OnTokenExpired?.Invoke();
+                    }
                     _intentionalStop = true;
                     _lifetime.Cancel();
                     return;
@@ -145,12 +184,11 @@ public class TunnelEngine
                     return;
                 case "open_stream":
                     {
-                        var streamId = message.StreamId;
-                        if (streamId is null) break;
-
-                        var session = new LocalStreamSession(streamId, localHost, localPort, client, streams, Log);
+                        var streamId = message.StreamId ?? "";
+                        var session = new LocalStreamSession(streamId, localHost, localPort, client, streams, Log, (count) => OnConnectionCountChanged?.Invoke(count));
                         if (streams.TryAdd(streamId, session))
                         {
+                            OnConnectionCountChanged?.Invoke(streams.Count);
                             _ = session.StartAsync();
                             Log($"Accepted public connection -> stream {streamId}");
                         }
@@ -176,6 +214,7 @@ public class TunnelEngine
                         if (streams.TryRemove(streamId, out var session))
                         {
                             await session.CloseAsync();
+                            OnConnectionCountChanged?.Invoke(streams.Count);
                             Log($"Stream closed by server: {streamId}");
                         }
                         break;
@@ -184,6 +223,8 @@ public class TunnelEngine
                     Log($"Unknown control message: {type}");
                     break;
             }
+            
+            message = await client.ReceiveAsync(_lifetime!.Token);
         }
 
         foreach (var kv in streams)
@@ -191,7 +232,10 @@ public class TunnelEngine
             await kv.Value.CloseAsync();
         }
         
-        await client.DisposeAsync();
+        if (client != null)
+        {
+            await client.DisposeAsync();
+        }
     }
 
     public void StopTunnel()
@@ -214,6 +258,7 @@ internal sealed class LocalStreamSession
     private readonly IControlChannelClient _client;
     private readonly ConcurrentDictionary<string, LocalStreamSession> _registry;
     private readonly Action<string> _log;
+    private readonly Action<int>? _onCountChanged;
     private readonly System.Threading.Channels.Channel<byte[]> _writeChannel;
     private readonly CancellationTokenSource _cts = new();
     private TcpClient? _localClient;
@@ -221,7 +266,7 @@ internal sealed class LocalStreamSession
     private bool _closeNotified;
     private int _started;
 
-    public LocalStreamSession(string streamId, string localHost, int localPort, IControlChannelClient client, ConcurrentDictionary<string, LocalStreamSession> registry, Action<string> log)
+    public LocalStreamSession(string streamId, string localHost, int localPort, IControlChannelClient client, ConcurrentDictionary<string, LocalStreamSession> registry, Action<string> log, Action<int>? onCountChanged = null)
     {
         _streamId = streamId;
         _localHost = localHost;
@@ -229,6 +274,7 @@ internal sealed class LocalStreamSession
         _client = client;
         _registry = registry;
         _log = log;
+        _onCountChanged = onCountChanged;
         _writeChannel = System.Threading.Channels.Channel.CreateUnbounded<byte[]>();
     }
 
@@ -271,6 +317,8 @@ internal sealed class LocalStreamSession
             var payload = new byte[read];
             Array.Copy(buffer, payload, read);
             
+            BandwidthTracker.AddTx(read);
+            
             try
             {
                 await _client.SendStreamDataAsync(_streamId, payload);
@@ -295,6 +343,7 @@ internal sealed class LocalStreamSession
             {
                 await _localStream.WriteAsync(payload, 0, payload.Length, _cts.Token);
                 await _localStream.FlushAsync(_cts.Token);
+                BandwidthTracker.AddRx(payload.Length);
             }
         }
     }
@@ -325,6 +374,7 @@ internal sealed class LocalStreamSession
 
         if (_registry.TryRemove(_streamId, out _))
         {
+            _onCountChanged?.Invoke(_registry.Count);
             _cts.Cancel();
             _writeChannel.Writer.TryComplete();
             

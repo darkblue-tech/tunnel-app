@@ -30,8 +30,18 @@ public class ApiService
 
         try
         {
-            var tunnels = await _httpClient.GetFromJsonAsync<List<TunnelModel>>($"{_baseUrl}/tunnels");
+            var response = await _httpClient.GetAsync($"{_baseUrl}/tunnels");
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                throw new UnauthorizedAccessException("Token is dead");
+            }
+            response.EnsureSuccessStatusCode();
+            var tunnels = await response.Content.ReadFromJsonAsync<List<TunnelModel>>();
             return tunnels ?? new List<TunnelModel>();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
