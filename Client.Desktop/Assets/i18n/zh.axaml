@@ -1,0 +1,42 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=mscorlib">
+
+    <system:String x:Key="Str_Login">登录</system:String>
+    <system:String x:Key="Str_Account">账户</system:String>
+    <system:String x:Key="Str_Name">名称</system:String>
+    <system:String x:Key="Str_License">许可证</system:String>
+    <system:String x:Key="Str_EnterpriseLicense">企业版 (darkblue.tech)</system:String>
+    <system:String x:Key="Str_LogOut">退出登录</system:String>
+    <system:String x:Key="Str_Preferences">首选项</system:String>
+    <system:String x:Key="Str_RunAtStartup">开机启动</system:String>
+    <system:String x:Key="Str_StartMinimized">启动时最小化</system:String>
+    <system:String x:Key="Str_CloseToTray">关闭到托盘</system:String>
+    <system:String x:Key="Str_Theme">主题</system:String>
+    <system:String x:Key="Str_ThemeSystem">系统</system:String>
+    <system:String x:Key="Str_ThemeLight">浅色</system:String>
+    <system:String x:Key="Str_ThemeDark">深色</system:String>
+    <system:String x:Key="Str_Language">语言</system:String>
+    <system:String x:Key="Str_SelectedRegion">选择区域：</system:String>
+    <system:String x:Key="Str_Tunnels">隧道</system:String>
+    <system:String x:Key="Str_Pull">刷新</system:String>
+    <system:String x:Key="Str_Logs">日志</system:String>
+    <system:String x:Key="Str_Connections">连接数</system:String>
+    <system:String x:Key="Str_UnknownVersion">未知版本</system:String>
+    <system:String x:Key="Str_SystemAdministrator">系统管理员</system:String>
+
+    <system:String x:Key="Str_Status_Disconnected">已断开</system:String>
+    <system:String x:Key="Str_Status_Connected">已连接</system:String>
+    <system:String x:Key="Str_Status_Connecting">连接中...</system:String>
+    <system:String x:Key="Str_Status_Authenticating">正在认证...</system:String>
+    <system:String x:Key="Str_Status_AuthFailed">认证失败</system:String>
+    <system:String x:Key="Str_Status_Refreshing">正在刷新...</system:String>
+    <system:String x:Key="Str_Status_SessionExpired">会话已过期</system:String>
+
+    <system:String x:Key="Str_Tray_Show">显示窗口</system:String>
+    <system:String x:Key="Str_Tray_Exit">退出</system:String>
+    <system:String x:Key="Str_Tray_ConnectAll">全部连接</system:String>
+    <system:String x:Key="Str_Tray_DisconnectAll">全部断开</system:String>
+    <system:String x:Key="Str_Tray_NotLoggedIn">未登录</system:String>
+    <system:String x:Key="Str_Transport">传输</system:String>
+</ResourceDictionary>

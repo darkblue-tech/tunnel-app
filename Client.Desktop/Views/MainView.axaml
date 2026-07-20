@@ -1,0 +1,177 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Client.Desktop.ViewModels"
+             x:Class="Client.Desktop.Views.MainView"
+             x:DataType="vm:MainViewModel">
+
+    <Grid RowDefinitions="Auto,Auto,*" Margin="20,72,20,20">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto">
+            <Panel Grid.Column="0" Width="218" Height="56" HorizontalAlignment="Left" VerticalAlignment="Top">
+                <Image Source="avares://DarkTunnel Client/Assets/Images/darktunnel_logo.png" IsVisible="{DynamicResource IsLightTheme}" RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                <Image Source="avares://DarkTunnel Client/Assets/Images/darktunnel_white_logo.png" IsVisible="{DynamicResource IsDarkTheme}" RenderOptions.BitmapInterpolationMode="HighQuality"/>
+            </Panel>
+            
+            <Button Grid.Column="1" Command="{Binding OpenStatsCommand}" 
+                    Background="Transparent" BorderThickness="0" CornerRadius="100" Padding="0" Margin="0,0,10,0" Cursor="Hand">
+                <Svg Path="{DynamicResource GraphBtnPath}" Width="64" Height="64"/>
+            </Button>
+            
+            <Button Grid.Column="2" Command="{Binding OpenSettingsCommand}" 
+                    Background="Transparent" BorderThickness="0" CornerRadius="100" Padding="0" Cursor="Hand">
+                <Svg Path="{DynamicResource SettingsBtnPath}" Width="64" Height="64"/>
+            </Button>
+        </Grid>
+
+        <!-- Status & Region -->
+        <StackPanel Grid.Row="1" VerticalAlignment="Top" Margin="0,44,0,0" HorizontalAlignment="Center">
+            <!-- Large Status Icon -->
+            <Button Command="{Binding ToggleGlobalConnectionCommand}" 
+                    Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand" HorizontalAlignment="Center"
+                    CornerRadius="118" Width="236" Height="236">
+                <Panel>
+                    <Svg Path="{DynamicResource ConnectedBtnPath}" 
+                         IsVisible="{Binding IsConnected}" Width="236" Height="236"/>
+                    <Svg Path="{DynamicResource DisconnectedBtnPath}" 
+                         IsVisible="{Binding !IsConnected}" Width="236" Height="236"/>
+                </Panel>
+            </Button>
+
+            <TextBlock Text="{Binding Status}" FontSize="32" FontWeight="Bold" Margin="0,39,0,0"
+                       Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" />
+            
+            <!-- Region Selector -->
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Center">
+                <Border Background="{DynamicResource BgSecondary}" CornerRadius="14" Height="29" Padding="15,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="{DynamicResource Str_SelectedRegion}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding SelectedRegion}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                        <Svg Path="{Binding FlagPath}" Width="18" Height="12" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Ping, StringFormat='{}{0} ms'}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource SuccessGreen}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                
+                <Button Command="{Binding OpenRegionSelectorCommand}" 
+                        Background="Transparent" BorderThickness="0" Padding="0" Margin="7,0,0,0" Cursor="Hand" VerticalAlignment="Center">
+                    <Rectangle Fill="#C4B4A2" Width="24" Height="24">
+                        <Rectangle.OpacityMask>
+                            <VisualBrush>
+                                <VisualBrush.Visual>
+                                    <Svg Path="avares://DarkTunnel Client/Assets/Icons/square-arrow-out-up-right.svg" />
+                                </VisualBrush.Visual>
+                            </VisualBrush>
+                        </Rectangle.OpacityMask>
+                    </Rectangle>
+                </Button>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Tunnels List Container -->
+        <Border Grid.Row="2" Background="{DynamicResource BgPrimary}" Margin="0,55,0,0"
+                BorderBrush="{DynamicResource Stroke}" BorderThickness="3" 
+                CornerRadius="16" Padding="12,12,12,12" Width="410" HorizontalAlignment="Center" VerticalAlignment="Top">
+            <Grid RowDefinitions="Auto,*">
+                <!-- Tunnels Header -->
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,0,0,8">
+                    <TextBlock Grid.Column="0" Text="{DynamicResource Str_Tunnels}" FontSize="24" FontWeight="Black" 
+                               Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                    
+                    <Border Grid.Column="1" Background="{DynamicResource BgSecondary}" 
+                            CornerRadius="10" Height="29" Padding="10,0" Margin="11,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding TunnelsCounterText}" FontWeight="Bold" FontSize="20" VerticalAlignment="Center"/>
+                    </Border>
+                    
+                    <Button Grid.Column="3" Command="{Binding PullTunnelsCommand}" Width="92" Height="32"
+                            Background="Transparent" BorderBrush="{DynamicResource Stroke}" BorderThickness="2" CornerRadius="8" Padding="0">
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Svg Path="avares://DarkTunnel Client/Assets/Icons/database-arrow-down.svg" Width="24" Height="24" />
+                            <TextBlock Text="Pull" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource IconPrimary}"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <ScrollViewer Grid.Row="1" MaxHeight="250" VerticalScrollBarVisibility="Hidden">
+                    <ItemsControl ItemsSource="{Binding Tunnels}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource Stroke}" BorderThickness="0,0,0,1" Padding="0,10">
+                                    <Grid RowDefinitions="Auto,Auto">
+                                        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                                            <Border Grid.Column="0" Background="{DynamicResource BgSecondary}" CornerRadius="4" Padding="5,0" Height="22">
+                                                <TextBlock Text="{Binding DisplayUrl}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <Svg Grid.Column="1" Path="avares://DarkTunnel Client/Assets/Icons/arrow-right-left.svg" Width="14" Height="15" HorizontalAlignment="Center"/>
+                                            <Border Grid.Column="2" Background="{DynamicResource BgSecondary}" CornerRadius="4" Padding="5,0" Height="22">
+                                                <TextBlock Text="{Binding Data.LocalTarget}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </Grid>
+                                        
+                                        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,8,0,0">
+                                            <Border Grid.Column="0" Background="{DynamicResource BgSecondary}" CornerRadius="4" Padding="5,4">
+                                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                                    <Rectangle Fill="#D09A74" Width="18" Height="17">
+                                                        <Rectangle.OpacityMask>
+                                                            <VisualBrush>
+                                                                <VisualBrush.Visual>
+                                                                    <Svg Path="avares://DarkTunnel Client/Assets/Icons/cable.svg" />
+                                                                </VisualBrush.Visual>
+                                                            </VisualBrush>
+                                                        </Rectangle.OpacityMask>
+                                                    </Rectangle>
+                                                    <TextBlock Text="{Binding ActiveConnections}" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{DynamicResource Str_Connections}" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Button Grid.Column="1" Command="{Binding DataContext.ToggleLogsPanelCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                    Background="{DynamicResource BgSecondary}" CornerRadius="4" Padding="5,4" Margin="8,0,0,0">
+                                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                                    <Rectangle Fill="#D09A74" Width="18" Height="17">
+                                                        <Rectangle.OpacityMask>
+                                                            <VisualBrush>
+                                                                <VisualBrush.Visual>
+                                                                    <Svg Path="avares://DarkTunnel Client/Assets/Icons/scroll-text.svg" />
+                                                                </VisualBrush.Visual>
+                                                            </VisualBrush>
+                                                        </Rectangle.OpacityMask>
+                                                    </Rectangle>
+                                                    <TextBlock Text="{DynamicResource Str_Logs}" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Button>
+                                            
+                                            <ToggleButton Grid.Column="3" IsChecked="{Binding IsSelected}" VerticalAlignment="Center" 
+                                                          IsEnabled="{Binding !DataContext.IsConnected, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                          Classes="CleanToggle">
+                                                <Panel>
+                                                    <Rectangle Fill="#D09A74" Width="24" Height="24" IsVisible="{Binding IsSelected}">
+                                                        <Rectangle.OpacityMask>
+                                                            <VisualBrush>
+                                                                <VisualBrush.Visual>
+                                                                    <Svg Path="avares://DarkTunnel Client/Assets/Icons/square-check.svg" />
+                                                                </VisualBrush.Visual>
+                                                            </VisualBrush>
+                                                        </Rectangle.OpacityMask>
+                                                    </Rectangle>
+                                                    <Rectangle Fill="#D09A74" Width="24" Height="24" IsVisible="{Binding !IsSelected}">
+                                                        <Rectangle.OpacityMask>
+                                                            <VisualBrush>
+                                                                <VisualBrush.Visual>
+                                                                    <Svg Path="avares://DarkTunnel Client/Assets/Icons/square.svg" />
+                                                                </VisualBrush.Visual>
+                                                            </VisualBrush>
+                                                        </Rectangle.OpacityMask>
+                                                    </Rectangle>
+                                                </Panel>
+                                            </ToggleButton>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>
+
+

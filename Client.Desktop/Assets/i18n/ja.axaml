@@ -1,0 +1,42 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=mscorlib">
+
+    <system:String x:Key="Str_Login">ログイン</system:String>
+    <system:String x:Key="Str_Account">アカウント</system:String>
+    <system:String x:Key="Str_Name">名前</system:String>
+    <system:String x:Key="Str_License">ライセンス</system:String>
+    <system:String x:Key="Str_EnterpriseLicense">エンタープライズ (darkblue.tech)</system:String>
+    <system:String x:Key="Str_LogOut">ログアウト</system:String>
+    <system:String x:Key="Str_Preferences">設定</system:String>
+    <system:String x:Key="Str_RunAtStartup">スタートアップ時に実行</system:String>
+    <system:String x:Key="Str_StartMinimized">最小化して起動</system:String>
+    <system:String x:Key="Str_CloseToTray">トレイに閉じる</system:String>
+    <system:String x:Key="Str_Theme">テーマ</system:String>
+    <system:String x:Key="Str_ThemeSystem">システム</system:String>
+    <system:String x:Key="Str_ThemeLight">ライト</system:String>
+    <system:String x:Key="Str_ThemeDark">ダーク</system:String>
+    <system:String x:Key="Str_Language">言語</system:String>
+    <system:String x:Key="Str_SelectedRegion">選択したリージョン:</system:String>
+    <system:String x:Key="Str_Tunnels">トンネル</system:String>
+    <system:String x:Key="Str_Pull">更新</system:String>
+    <system:String x:Key="Str_Logs">ログ</system:String>
+    <system:String x:Key="Str_Connections">接続</system:String>
+    <system:String x:Key="Str_UnknownVersion">不明なバージョン</system:String>
+    <system:String x:Key="Str_SystemAdministrator">システム管理者</system:String>
+
+    <system:String x:Key="Str_Status_Disconnected">切断されました</system:String>
+    <system:String x:Key="Str_Status_Connected">接続済み</system:String>
+    <system:String x:Key="Str_Status_Connecting">接続中...</system:String>
+    <system:String x:Key="Str_Status_Authenticating">認証中...</system:String>
+    <system:String x:Key="Str_Status_AuthFailed">認証失敗</system:String>
+    <system:String x:Key="Str_Status_Refreshing">更新中...</system:String>
+    <system:String x:Key="Str_Status_SessionExpired">セッションの有効期限が切れました</system:String>
+
+    <system:String x:Key="Str_Tray_Show">ウィンドウを表示</system:String>
+    <system:String x:Key="Str_Tray_Exit">終了</system:String>
+    <system:String x:Key="Str_Tray_ConnectAll">すべて接続</system:String>
+    <system:String x:Key="Str_Tray_DisconnectAll">すべて切断</system:String>
+    <system:String x:Key="Str_Tray_NotLoggedIn">ログインしていません</system:String>
+    <system:String x:Key="Str_Transport">トランスポート</system:String>
+</ResourceDictionary>

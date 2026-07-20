@@ -11,7 +11,7 @@ namespace Client.Desktop.ViewModels;
 public partial class TunnelItemViewModel : ViewModelBase
 {
     private readonly TunnelEngine _engine;
-    private readonly string _serverToken;
+    private readonly AuthService _authService;
 
     [ObservableProperty]
     private TunnelModel _data;
@@ -23,45 +23,99 @@ public partial class TunnelItemViewModel : ViewModelBase
     private bool _isConnected;
 
     [ObservableProperty]
+    private bool _isActuallyConnected;
+
+    [ObservableProperty]
+    private int _activeConnections;
+
+    [ObservableProperty]
+    private bool _isSelected;
+
+    [ObservableProperty]
     private string _logs = "";
 
     [ObservableProperty]
     private string _displayUrl = "";
 
-    public TunnelItemViewModel(TunnelModel model, string serverToken)
+    public event Action<string>? OnLogReceived;
+    public event Action? OnSessionExpired;
+
+    private readonly Func<bool> _isGlobalConnected;
+
+    public TunnelItemViewModel(TunnelModel model, AuthService authService, Func<bool> isGlobalConnected)
     {
         _data = model;
-        _serverToken = serverToken;
+        _authService = authService;
+        _isGlobalConnected = isGlobalConnected;
         _displayUrl = model.PublicUrl;
         _engine = new TunnelEngine();
         _engine.OnLog += OnEngineLog;
         _engine.OnDisconnected += OnEngineDisconnected;
         _engine.OnConnected += OnEngineConnected;
+        _engine.OnConnectionCountChanged += OnConnectionCountChanged;
+        _engine.OnTokenExpired += OnEngineTokenExpired;
     }
 
-    [RelayCommand]
-    private async Task ToggleConnectionAsync()
+    private void OnEngineTokenExpired()
     {
-        if (IsConnected)
+        Dispatcher.UIThread.Post(async () =>
         {
-            _engine.StopTunnel();
-            IsConnected = false;
-            Status = "DISCONNECTED";
-        }
-        else
+            var newToken = await _authService.RefreshTokenAsync();
+            if (string.IsNullOrEmpty(newToken))
+            {
+                IsActuallyConnected = false;
+                Status = "SESSION EXPIRED";
+                OnSessionExpired?.Invoke();
+            }
+            else
+            {
+                // Restart with new token
+                IsConnected = false;
+                Start();
+            }
+        });
+    }
+
+    partial void OnIsSelectedChanged(bool value)
+    {
+        if (value && _isGlobalConnected())
         {
-            Status = "CONNECTING...";
-            IsConnected = true;
-
-            var serverUrl = Environment.GetEnvironmentVariable("TUNNEL_HOST_WS") ?? "wss://tunnel.darkblue.tech/ws";
-
-            // Parse subdomain and local target
-            var subdomain = ParseSubdomain(Data.PublicUrl);
-            var (localHost, localPort) = ParseLocalTarget(Data.LocalTarget);
-
-            // Important: Use http:// instead of https:// for raw TCP ports (7000+) because TLS is only on 443
-            _ = _engine.StartTunnelAsync(serverUrl, subdomain, localHost, localPort, Data.PublicPort, _serverToken);
+            Start();
         }
+        else if (!value)
+        {
+            Stop();
+        }
+    }
+
+    public void Start()
+    {
+        if (IsConnected) return;
+        Status = "CONNECTING...";
+        IsConnected = true;
+
+        var serverUrl = Environment.GetEnvironmentVariable("TUNNEL_HOST_WS") ?? "wss://tunnel.darkblue.tech/ws";
+
+        var subdomain = ParseSubdomain(Data.PublicUrl);
+        var (localHost, localPort) = ParseLocalTarget(Data.LocalTarget);
+
+        _ = Task.Run(async () =>
+        {
+            var storage = new SecretStorage();
+            var transport = await storage.GetSecretAsync("transport") ?? "Auto";
+            var token = await _authService.GetTokenAsync();
+            await _engine.StartTunnelAsync(serverUrl, subdomain, localHost, localPort, Data.PublicPort, token, transport);
+        });
+    }
+
+    public void Stop()
+    {
+        if (!IsConnected) return;
+        _engine.StopTunnel();
+        IsConnected = false;
+        IsActuallyConnected = false;
+        ActiveConnections = 0;
+        Status = "DISCONNECTED";
     }
 
     private string ParseSubdomain(string publicUrl)
@@ -92,6 +146,7 @@ public partial class TunnelItemViewModel : ViewModelBase
             if (IsConnected) 
             {
                 Status = "CONNECTED";
+                IsActuallyConnected = true;
                 if (!string.IsNullOrEmpty(publicUrl)) 
                 {
                     // If it's a dynamic TCP port (7000+), replace https:// with http://
@@ -113,8 +168,18 @@ public partial class TunnelItemViewModel : ViewModelBase
             if (IsConnected)
             {
                 Status = "RECONNECTING...";
+                IsActuallyConnected = false;
+                ActiveConnections = 0;
                 OnEngineLog("Connection lost. Engine is attempting to reconnect...");
             }
+        });
+    }
+
+    private void OnConnectionCountChanged(int count)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            ActiveConnections = count;
         });
     }
 
@@ -123,6 +188,7 @@ public partial class TunnelItemViewModel : ViewModelBase
         Dispatcher.UIThread.Post(() =>
         {
             Logs += $"{message}{Environment.NewLine}";
+            OnLogReceived?.Invoke(message);
         });
     }
 }

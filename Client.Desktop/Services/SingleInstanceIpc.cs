@@ -14,7 +14,7 @@ public static class SingleInstanceIpc
         try
         {
             using var client = new NamedPipeClientStream(".", PipeName, PipeDirection.Out);
-            client.Connect(100);
+            client.Connect(3000); // Increased timeout to prevent race condition on fast redirects
             
             if (args.Length > 0)
             {
@@ -56,7 +56,7 @@ public static class SingleInstanceIpc
                         {
                             var code = query.Substring(6);
                             // We use Task.Run to not block the IPC thread
-                            Task.Run(() => AuthService.AuthCodeCompletionSource.TrySetResult(code));
+                            _ = Task.Run(() => AuthService.AuthCodeCompletionSource.TrySetResult(code));
                         }
                     }
                 }

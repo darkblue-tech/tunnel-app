@@ -1,16 +1,17 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Client.Desktop.ViewModels"
+        xmlns:v="using:Client.Desktop.Views"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
-        Width="800" Height="650"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="800"
+        Width="500" Height="800"
         x:Class="Client.Desktop.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/app.ico"
         Title="DarkTunnel Client"
         TransparencyLevelHint="Mica"
-        Background="Transparent"
+        Background="{DynamicResource BgPrimary}"
         ExtendClientAreaToDecorationsHint="True"
         WindowStartupLocation="CenterScreen">
 
@@ -18,102 +19,54 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <Grid RowDefinitions="Auto,*,Auto" Margin="20,40,20,20">
-        <!-- Header -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,20">
-            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center">
-                <TextBlock Text="DarkTunnel" FontSize="26" FontWeight="Bold" />
-                <Border Background="#20FFFFFF" CornerRadius="12" Padding="10,4" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Status}" FontSize="12" FontWeight="SemiBold" />
-                </Border>
-            </StackPanel>
+    <Window.DataTemplates>
+        <DataTemplate DataType="{x:Type vm:LoginViewModel}">
+            <v:LoginView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:MainViewModel}">
+            <v:MainView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:StatsViewModel}">
+            <v:StatsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <v:SettingsView />
+        </DataTemplate>
+    </Window.DataTemplates>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                <CheckBox Content="Run at startup" 
-                          IsChecked="{Binding RunAtStartup}" 
-                          Foreground="#AAFFFFFF" 
-                          Margin="0,0,10,0"/>
-                <Button Content="Connect &amp; Fetch" 
-                        Command="{Binding LoginAndLoadTunnelsCommand}" 
-                        IsVisible="{Binding !IsAuthenticated}" 
-                        Background="#107C10" />
-                <Button Content="Refresh" 
-                        Command="{Binding RefreshTunnelsCommand}" 
-                        IsVisible="{Binding IsAuthenticated}" />
-            </StackPanel>
-        </Grid>
+    <Grid>
+        <!-- Main Router Content -->
+        <TransitioningContentControl Content="{Binding CurrentViewModel}" />
 
-        <!-- Main Content: Tunnels List -->
-        <ScrollViewer Grid.Row="1">
-            <ItemsControl ItemsSource="{Binding Tunnels}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Background="#11FFFFFF" CornerRadius="8" Padding="15" Margin="0,0,0,15">
-                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
-                                <!-- Tunnel Info -->
-                                <StackPanel Grid.Column="0" Grid.Row="0" Spacing="5">
-                                    <TextBlock Text="{Binding Data.Name}" FontSize="18" FontWeight="SemiBold" />
-                                    
-                                    <!-- Routes -->
-                                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,5,0,0">
-                                        <Border Background="#22FFFFFF" CornerRadius="4" Padding="5,2">
-                                            <TextBlock Text="{Binding DisplayUrl}" FontSize="13" Foreground="#AAFFFFFF" />
-                                        </Border>
-                                        <PathIcon Data="M0,5 L10,5 M7,2 L10,5 L7,8" Width="12" Height="12" Foreground="#88FFFFFF" />
-                                        <Border Background="#22FFFFFF" CornerRadius="4" Padding="5,2">
-                                            <TextBlock Text="{Binding Data.LocalTarget}" FontSize="13" Foreground="#AAFFFFFF" />
-                                        </Border>
-                                    </StackPanel>
-                                    
-                                    <!-- Status Badge -->
-                                    <TextBlock Text="{Binding Status}" 
-                                               FontSize="12" 
-                                               FontWeight="Bold" 
-                                               Foreground="{Binding IsConnected, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                               Margin="0,5,0,0" />
-                                </StackPanel>
-
-                                <!-- Toggle Switch -->
-                                <ToggleButton Grid.Column="1" Grid.Row="0"
-                                              IsChecked="{Binding IsConnected, Mode=OneWay}"
-                                              Command="{Binding ToggleConnectionCommand}"
-                                              Width="60" Height="60"
-                                              CornerRadius="30"
-                                              VerticalAlignment="Center"
-                                              BorderBrush="#44FFFFFF"
-                                              BorderThickness="1">
-                                    <ToggleButton.Styles>
-                                        <Style Selector="ToggleButton:checked">
-                                            <Setter Property="Background" Value="#107C10"/>
-                                        </Style>
-                                        <Style Selector="ToggleButton:unchecked">
-                                            <Setter Property="Background" Value="#333333"/>
-                                        </Style>
-                                    </ToggleButton.Styles>
-                                    <PathIcon Data="M12,2L12,12 M12,22 C6.477,22 2,17.523 2,12 C2,6.477 6.477,2 12,2" 
-                                              Width="24" Height="24" 
-                                              Foreground="White"/>
-                                </ToggleButton>
-
-                                <!-- Expandable Logs -->
-                                <Expander Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" 
-                                          Header="Logs" 
-                                          Margin="0,15,0,0"
-                                          HorizontalAlignment="Stretch">
-                                    <TextBox Text="{Binding Logs}" 
-                                             IsReadOnly="True" 
-                                             Height="120" 
-                                             TextWrapping="Wrap"
-                                             FontFamily="Consolas, monospace"
-                                             FontSize="11"
-                                             Background="#05FFFFFF"/>
-                                </Expander>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
+        <!-- Logs Overlay (Bottom Sheet) -->
+        <Border Background="{DynamicResource BgSecondary}" 
+                CornerRadius="16,16,0,0"
+                VerticalAlignment="Bottom"
+                Height="300"
+                Margin="0,0,0,0"
+                IsVisible="{Binding IsLogsPanelOpen}"
+                BoxShadow="0 -4 10 0 #20000000">
+            <Grid RowDefinitions="Auto,*">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="20,15,20,10">
+                    <TextBlock Grid.Column="0" Text="Logs" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+                    <Button Grid.Column="1" Command="{Binding ToggleLogsPanelCommand}" Background="Transparent" BorderThickness="0">
+                        <Svg Path="avares://DarkTunnel Client/Assets/Icons/chevron-down.svg" Width="24" Height="24"/>
+                    </Button>
+                </Grid>
+                
+                <ScrollViewer Grid.Row="1" Margin="20,0,20,20">
+                    <TextBox Text="{Binding GlobalLogs}" 
+                             IsReadOnly="True"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             FontFamily="{StaticResource InterFont}" 
+                             FontSize="12" FontWeight="Bold"
+                             Foreground="{DynamicResource TextAccent}"
+                             TextWrapping="Wrap" />
+                </ScrollViewer>
+            </Grid>
+        </Border>
     </Grid>
-
 </Window>
+
+
