@@ -119,10 +119,14 @@ public partial class TunnelItemViewModel : ViewModelBase
                     {
                         var ping = new System.Net.NetworkInformation.Ping();
                         var host = new Uri(serverUrl).Host;
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
                         var reply = await ping.SendPingAsync(host, 3000);
+                        sw.Stop();
                         if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
                         {
-                            Avalonia.Threading.Dispatcher.UIThread.Post(() => _parent.MainVM.Ping = (int)reply.RoundtripTime);
+                            var ms = reply.RoundtripTime > 0 ? (int)reply.RoundtripTime : (int)sw.ElapsedMilliseconds;
+                            if (ms == 0) ms = 1;
+                            Avalonia.Threading.Dispatcher.UIThread.Post(() => _parent.MainVM.Ping = ms);
                         }
                     }
                     catch { }
