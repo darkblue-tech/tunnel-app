@@ -41,14 +41,16 @@ public partial class TunnelItemViewModel : ViewModelBase
     public event Action<string>? OnLogReceived;
     public event Action? OnSessionExpired;
 
+    private readonly MainWindowViewModel _parent;
     private readonly Func<bool> _isGlobalConnected;
 
-    public TunnelItemViewModel(TunnelModel model, AuthService authService, ApiService apiService, Func<bool> isGlobalConnected)
+    public TunnelItemViewModel(TunnelModel model, AuthService authService, ApiService apiService, MainWindowViewModel parent)
     {
         _data = model;
         _authService = authService;
         _apiService = apiService;
-        _isGlobalConnected = isGlobalConnected;
+        _parent = parent;
+        _isGlobalConnected = () => (_parent.CurrentViewModel as MainViewModel)?.IsConnected ?? false;
         _displayUrl = model.PublicUrl;
         _engine = new TunnelEngine();
         _engine.OnLog += OnEngineLog;
