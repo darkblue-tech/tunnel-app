@@ -49,4 +49,31 @@ public class ApiService
             return new List<TunnelModel>();
         }
     }
+
+    public async Task<string?> GetPreferredEdgeNodeAsync()
+    {
+        var token = await _authService.GetTokenAsync();
+        if (string.IsNullOrEmpty(token)) return null;
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        try
+        {
+            var response = await _httpClient.GetAsync($"{_baseUrl}/v1/edge-nodes/preferred");
+            response.EnsureSuccessStatusCode();
+            
+            var result = await response.Content.ReadFromJsonAsync<EdgeNodeResponse>();
+            return result?.Url;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to fetch preferred edge node: {ex.Message}");
+            return null;
+        }
+    }
+
+    private class EdgeNodeResponse
+    {
+        public string Url { get; set; } = string.Empty;
+    }
 }

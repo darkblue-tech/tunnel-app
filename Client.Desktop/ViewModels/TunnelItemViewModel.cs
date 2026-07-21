@@ -12,6 +12,7 @@ public partial class TunnelItemViewModel : ViewModelBase
 {
     private readonly TunnelEngine _engine;
     private readonly AuthService _authService;
+    private readonly ApiService _apiService;
 
     [ObservableProperty]
     private TunnelModel _data;
@@ -42,10 +43,11 @@ public partial class TunnelItemViewModel : ViewModelBase
 
     private readonly Func<bool> _isGlobalConnected;
 
-    public TunnelItemViewModel(TunnelModel model, AuthService authService, Func<bool> isGlobalConnected)
+    public TunnelItemViewModel(TunnelModel model, AuthService authService, ApiService apiService, Func<bool> isGlobalConnected)
     {
         _data = model;
         _authService = authService;
+        _apiService = apiService;
         _isGlobalConnected = isGlobalConnected;
         _displayUrl = model.PublicUrl;
         _engine = new TunnelEngine();
@@ -94,13 +96,13 @@ public partial class TunnelItemViewModel : ViewModelBase
         Status = "CONNECTING...";
         IsConnected = true;
 
-        var serverUrl = Environment.GetEnvironmentVariable("TUNNEL_HOST_WS") ?? "wss://tunnel.darkblue.tech/ws";
-
         var subdomain = ParseSubdomain(Data.PublicUrl);
         var (localHost, localPort) = ParseLocalTarget(Data.LocalTarget);
 
         _ = Task.Run(async () =>
         {
+            var serverUrl = await _apiService.GetPreferredEdgeNodeAsync() ?? "wss://tunnel.darkblue.tech/ws";
+
             var storage = new SecretStorage();
             var transport = await storage.GetSecretAsync("transport") ?? "Auto";
             var token = await _authService.GetTokenAsync();
