@@ -101,7 +101,31 @@ public partial class TunnelItemViewModel : ViewModelBase
 
         _ = Task.Run(async () =>
         {
-            var serverUrl = await _apiService.GetPreferredEdgeNodeAsync() ?? "wss://tunnel.darkblue.tech/ws";
+            var edgeNodeInfo = await _apiService.GetPreferredEdgeNodeAsync();
+            var serverUrl = edgeNodeInfo?.Url ?? "wss://tunnel.darkblue.tech/ws";
+
+            if (edgeNodeInfo != null && _parent.MainVM != null)
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    _parent.MainVM.SelectedRegion = string.IsNullOrEmpty(edgeNodeInfo.Region) ? "EU" : edgeNodeInfo.Region.ToUpper();
+                });
+
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var ping = new System.Net.NetworkInformation.Ping();
+                        var host = new Uri(serverUrl).Host;
+                        var reply = await ping.SendPingAsync(host, 3000);
+                        if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
+                        {
+                            Avalonia.Threading.Dispatcher.UIThread.Post(() => _parent.MainVM.Ping = (int)reply.RoundtripTime);
+                        }
+                    }
+                    catch { }
+                });
+            }
 
             var storage = new SecretStorage();
             var transport = await storage.GetSecretAsync("transport") ?? "Auto";

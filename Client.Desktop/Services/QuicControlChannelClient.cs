@@ -46,7 +46,8 @@ public class QuicControlChannelClient : IControlChannelClient
             DefaultStreamErrorCode = 0,
             DefaultCloseErrorCode = 0,
             MaxInboundBidirectionalStreams = 100,
-            MaxInboundUnidirectionalStreams = 100
+            MaxInboundUnidirectionalStreams = 100,
+            IdleTimeout = TimeSpan.FromMinutes(2)
         };
 
         _connection = await QuicConnection.ConnectAsync(options, cancellationToken);

@@ -50,20 +50,20 @@ public class ApiService
         }
     }
 
-    public async Task<string?> GetPreferredEdgeNodeAsync()
+    public async Task<EdgeNodeResponse?> GetPreferredEdgeNodeAsync()
     {
         var token = await _authService.GetTokenAsync();
         if (string.IsNullOrEmpty(token)) return null;
 
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
         try
         {
             var response = await _httpClient.GetAsync($"{_baseUrl}/v1/edge-nodes/preferred");
             response.EnsureSuccessStatusCode();
             
-            var result = await response.Content.ReadFromJsonAsync<EdgeNodeResponse>();
-            return result?.Url;
+            var result = await System.Net.Http.Json.HttpContentJsonExtensions.ReadFromJsonAsync<EdgeNodeResponse>(response.Content);
+            return result;
         }
         catch (Exception ex)
         {
@@ -72,8 +72,10 @@ public class ApiService
         }
     }
 
-    private class EdgeNodeResponse
+    public class EdgeNodeResponse
     {
         public string Url { get; set; } = string.Empty;
+        public string Region { get; set; } = string.Empty;
+        public string Hostname { get; set; } = string.Empty;
     }
 }
