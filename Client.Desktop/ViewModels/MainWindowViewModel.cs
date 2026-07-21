@@ -230,7 +230,7 @@ public partial class MainWindowViewModel : ViewModelBase
             Tunnels.Clear();
             foreach (var data in tunnelsData)
             {
-                var tvm = new TunnelItemViewModel(data, _authService, _apiService, () => (CurrentViewModel as MainViewModel)?.IsConnected ?? false);
+                var tvm = new TunnelItemViewModel(data, _authService, _apiService, this);
                 
                 if (selectedSet.Contains(data.Id.ToString()))
                 {
