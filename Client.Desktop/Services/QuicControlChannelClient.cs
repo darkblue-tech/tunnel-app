@@ -54,6 +54,7 @@ public class QuicControlChannelClient : IControlChannelClient
         
         // Open the primary control stream
         _controlStream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, cancellationToken);
+        _reader = new StreamReader(_controlStream, Encoding.UTF8, leaveOpen: true);
     }
 
     public Task SendAuthAsync(string clientName, string accessToken)
@@ -81,13 +82,11 @@ public class QuicControlChannelClient : IControlChannelClient
 
     public async Task<ControlMessageDto?> ReceiveAsync(CancellationToken cancellationToken)
     {
-        if (_controlStream == null) return null;
+        if (_reader == null) return null;
 
-        var reader = new StreamReader(_controlStream, Encoding.UTF8, leaveOpen: true);
-        
         try
         {
-            var line = await reader.ReadLineAsync(cancellationToken);
+            var line = await _reader.ReadLineAsync(cancellationToken);
             if (line == null) return null; // Stream closed
 
             using var doc = JsonDocument.Parse(line);
