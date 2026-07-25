@@ -16,6 +16,7 @@ public class QuicControlChannelClient : IControlChannelClient
 {
     private QuicConnection? _connection;
     private QuicStream? _controlStream;
+    private StreamReader? _reader;
     private readonly SemaphoreSlim _sendLock = new(1, 1);
 
     public async Task ConnectAsync(Uri uri, CancellationToken cancellationToken)
