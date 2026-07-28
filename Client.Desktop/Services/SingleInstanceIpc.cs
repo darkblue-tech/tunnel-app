@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.IO.Pipes;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Client.Desktop.Services;
@@ -8,9 +9,27 @@ namespace Client.Desktop.Services;
 public static class SingleInstanceIpc
 {
     private const string PipeName = "darkblue.tech Tunnel IPC";
+    private const string MutexName = "DarkTunnelClient_SingleInstance_Mutex";
+    private static Mutex? _appMutex;
 
     public static bool CheckAndForwardArgs(string[] args)
     {
+        bool createdNew = false;
+        try
+        {
+            _appMutex = new Mutex(true, MutexName, out createdNew);
+        }
+        catch (Exception)
+        {
+            // If mutex creation fails, fallback to standard pipe connection
+        }
+
+        if (createdNew)
+        {
+            // We are the first instance, no need to wait 3 seconds for a non-existent pipe.
+            return false;
+        }
+
         try
         {
             using var client = new NamedPipeClientStream(".", PipeName, PipeDirection.Out);
