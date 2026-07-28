@@ -10,7 +10,13 @@ public static class AutostartHelper
 
     public static void SetAutostart(bool enable)
     {
-        var execPath = Assembly.GetExecutingAssembly().Location;
+        var execPath = Environment.ProcessPath;
+
+        if (string.IsNullOrEmpty(execPath))
+        {
+            Console.WriteLine("Failed to determine process path.");
+            return;
+        }
         // On .NET Core / 5+, Location might be the .dll. We want the executable.
         if (execPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
         {
