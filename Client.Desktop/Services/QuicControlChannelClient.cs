@@ -21,7 +21,7 @@ public class QuicControlChannelClient : IControlChannelClient
 
     public async Task ConnectAsync(Uri uri, CancellationToken cancellationToken)
     {
-        if (!QuicListener.IsSupported)
+        if (!QuicConnection.IsSupported)
         {
             throw new NotSupportedException("QUIC is not supported on this platform.");
         }

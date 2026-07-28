@@ -30,7 +30,8 @@ public class WebRtcControlChannelClient : IControlChannelClient
 
     public async Task ConnectAsync(Uri uri, CancellationToken cancellationToken)
     {
-        var signalingBaseUrl = $"https://{uri.Host}:5443/webrtc";
+        var port = uri.Port > 0 ? uri.Port : 443;
+        var signalingBaseUrl = $"https://{uri.Host}:{port}/webrtc";
         _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _serverToken);
 
         var rtcConfig = new RTCConfiguration
