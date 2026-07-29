@@ -41,15 +41,22 @@ public class UpdateService
 
     public async Task<bool> ApplyUpdateAsync(UpdateCheckResult updateInfo)
     {
-        if (string.IsNullOrEmpty(updateInfo.WebSetupUrl) && string.IsNullOrEmpty(updateInfo.DownloadUrl))
+        if (string.IsNullOrEmpty(updateInfo.DownloadUrl))
         {
             return false;
         }
 
         try
         {
-            var downloadUrl = !string.IsNullOrEmpty(updateInfo.WebSetupUrl) ? updateInfo.WebSetupUrl : updateInfo.DownloadUrl;
-            var targetFile = Path.Combine(Path.GetTempPath(), Path.GetFileName(new Uri(downloadUrl).AbsolutePath));
+            var downloadUrl = updateInfo.DownloadUrl;
+            if (!downloadUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            {
+                var baseUri = new Uri(_baseUrl);
+                downloadUrl = new Uri(baseUri, downloadUrl).ToString();
+            }
+
+            var fileName = Path.GetFileName(new Uri(downloadUrl).AbsolutePath);
+            var targetFile = Path.Combine(Path.GetTempPath(), fileName);
 
             using (var downloadStream = await _httpClient.GetStreamAsync(downloadUrl))
             using (var fileStream = File.Create(targetFile))
