@@ -126,6 +126,57 @@ public partial class MainWindowViewModel : ViewModelBase
             CurrentViewModel = MainVM;
             await LoadTunnelsAsync(token);
         }
+        _ = CheckForUpdatesBackgroundAsync();
+    }
+
+    [ObservableProperty]
+    private bool _hasUpdateResult;
+
+    [ObservableProperty]
+    private string _updateVersionText = string.Empty;
+
+    [ObservableProperty]
+    private string _updateNotesText = string.Empty;
+
+    [ObservableProperty]
+    private bool _isUpdating;
+
+    private UpdateCheckResult? _pendingUpdateInfo;
+
+    private async Task CheckForUpdatesBackgroundAsync()
+    {
+        try
+        {
+            var updateService = new UpdateService();
+            var result = await updateService.CheckForUpdatesAsync();
+            if (result != null && result.HasUpdate)
+            {
+                _pendingUpdateInfo = result;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    UpdateVersionText = result.LatestVersion;
+                    UpdateNotesText = result.ReleaseNotes;
+                    HasUpdateResult = true;
+                });
+            }
+        }
+        catch { }
+    }
+
+    [RelayCommand]
+    public async Task ApplyUpdateAsync()
+    {
+        if (_pendingUpdateInfo == null) return;
+        IsUpdating = true;
+        try
+        {
+            var updateService = new UpdateService();
+            await updateService.ApplyUpdateAsync(_pendingUpdateInfo);
+        }
+        finally
+        {
+            IsUpdating = false;
+        }
     }
 
     [ObservableProperty]
