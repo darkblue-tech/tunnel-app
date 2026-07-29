@@ -17,6 +17,7 @@
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://tunnel.darkblue.tech</PackageProjectUrl>
     <PackageTags>darktunnel;darkblue;tech</PackageTags>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
   <ItemGroup>
@@ -47,7 +48,15 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
-    <PackageReference Include="Microsoft.Native.Quic.MsQuic.Schannel" Version="2.5.9" />
+    <PackageReference Include="Microsoft.Native.Quic.MsQuic.OpenSSL" Version="2.5.9" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="$(PkgMicrosoft_Native_Quic_MsQuic_OpenSSL)\runtimes\win-x64\native\msquic.dll" Condition="Exists('$(PkgMicrosoft_Native_Quic_MsQuic_OpenSSL)\runtimes\win-x64\native\msquic.dll')">
+      <Link>msquic.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
