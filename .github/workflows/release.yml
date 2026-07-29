@@ -49,7 +49,7 @@ jobs:
           - target: freebsd-x64
             os: ubuntu-latest
             archive_ext: tar.gz
-            self_contained: 'true'
+            self_contained: 'false'
 
     steps:
       - name: Checkout
