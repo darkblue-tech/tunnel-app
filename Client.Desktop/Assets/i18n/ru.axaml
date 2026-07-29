@@ -1,0 +1,42 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=mscorlib">
+
+    <system:String x:Key="Str_Login">Войти</system:String>
+    <system:String x:Key="Str_Account">Аккаунт</system:String>
+    <system:String x:Key="Str_Name">Имя</system:String>
+    <system:String x:Key="Str_License">Лицензия</system:String>
+    <system:String x:Key="Str_EnterpriseLicense">Корпоративная (darkblue.tech)</system:String>
+    <system:String x:Key="Str_LogOut">Выйти</system:String>
+    <system:String x:Key="Str_Preferences">Настройки</system:String>
+    <system:String x:Key="Str_RunAtStartup">Запускать при старте</system:String>
+    <system:String x:Key="Str_StartMinimized">Сворачивать при старте</system:String>
+    <system:String x:Key="Str_CloseToTray">Сворачивать в трей</system:String>
+    <system:String x:Key="Str_Theme">Тема</system:String>
+    <system:String x:Key="Str_ThemeSystem">Системная</system:String>
+    <system:String x:Key="Str_ThemeLight">Светлая</system:String>
+    <system:String x:Key="Str_ThemeDark">Темная</system:String>
+    <system:String x:Key="Str_Language">Язык</system:String>
+    <system:String x:Key="Str_SelectedRegion">Выбранный регион:</system:String>
+    <system:String x:Key="Str_Tunnels">Туннели</system:String>
+    <system:String x:Key="Str_Pull">Обновить</system:String>
+    <system:String x:Key="Str_Logs">логи</system:String>
+    <system:String x:Key="Str_Connections">соединений</system:String>
+    <system:String x:Key="Str_UnknownVersion">Неизвестная версия</system:String>
+    <system:String x:Key="Str_SystemAdministrator">Системный администратор</system:String>
+
+    <system:String x:Key="Str_Status_Disconnected">Отключено</system:String>
+    <system:String x:Key="Str_Status_Connected">Подключено</system:String>
+    <system:String x:Key="Str_Status_Connecting">Подключение...</system:String>
+    <system:String x:Key="Str_Status_Authenticating">Авторизация...</system:String>
+    <system:String x:Key="Str_Status_AuthFailed">Ошибка авторизации</system:String>
+    <system:String x:Key="Str_Status_Refreshing">Обновление...</system:String>
+    <system:String x:Key="Str_Status_SessionExpired">Сессия истекла</system:String>
+
+    <system:String x:Key="Str_Tray_Show">Показать окно</system:String>
+    <system:String x:Key="Str_Tray_Exit">Выход</system:String>
+    <system:String x:Key="Str_Tray_ConnectAll">Подключить все</system:String>
+    <system:String x:Key="Str_Tray_DisconnectAll">Отключить все</system:String>
+    <system:String x:Key="Str_Tray_NotLoggedIn">Не авторизован</system:String>
+    <system:String x:Key="Str_Transport">Транспорт</system:String>
+</ResourceDictionary>

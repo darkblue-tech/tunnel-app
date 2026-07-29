@@ -1,0 +1,45 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Client.Desktop.ViewModels"
+             xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
+             x:Class="Client.Desktop.Views.StatsView"
+             x:DataType="vm:StatsViewModel">
+
+    <Grid RowDefinitions="Auto,*" Margin="20,72,20,20">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <Panel Grid.Column="0" Width="218" Height="56" HorizontalAlignment="Left" VerticalAlignment="Top">
+                <Image Source="avares://DarkTunnel Client/Assets/Images/darktunnel_logo.png" IsVisible="{DynamicResource IsLightTheme}" RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                <Image Source="avares://DarkTunnel Client/Assets/Images/darktunnel_white_logo.png" IsVisible="{DynamicResource IsDarkTheme}" RenderOptions.BitmapInterpolationMode="HighQuality"/>
+            </Panel>
+            
+            <Button Grid.Column="1" Command="{Binding CloseCommand}" 
+                    Background="Transparent" BorderThickness="0" CornerRadius="100" Padding="0" Cursor="Hand">
+                <Svg Path="{DynamicResource ReturnBtnPath}" Width="64" Height="64"/>
+            </Button>
+        </Grid>
+
+        <!-- Main Content -->
+        <Grid Grid.Row="1" RowDefinitions="Auto,*" Margin="0,40,0,0">
+            <!-- Current Speeds -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="10,0,10,20">
+                <StackPanel Grid.Column="0" Spacing="5" HorizontalAlignment="Left">
+                    <TextBlock Text="Download" FontSize="16" FontWeight="Bold" Foreground="#4CAF50"/>
+                    <TextBlock Text="{Binding CurrentRxText}" FontSize="32" FontWeight="Black" Foreground="{DynamicResource TextPrimary}"/>
+                </StackPanel>
+                
+                <StackPanel Grid.Column="1" Spacing="5" HorizontalAlignment="Right">
+                    <TextBlock Text="Upload" FontSize="16" FontWeight="Bold" Foreground="#2196F3" HorizontalAlignment="Right"/>
+                    <TextBlock Text="{Binding CurrentTxText}" FontSize="32" FontWeight="Black" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Right"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Chart -->
+            <Border Grid.Row="1" Background="{DynamicResource BgSecondary}" BorderBrush="{DynamicResource Stroke}" 
+                    BorderThickness="2" CornerRadius="16" Padding="20">
+                <lvc:CartesianChart Series="{Binding Series}" XAxes="{Binding XAxes}" YAxes="{Binding YAxes}" AnimationsSpeed="{Binding ChartAnimationsSpeed}" TooltipPosition="Hidden" />
+            </Border>
+        </Grid>
+    </Grid>
+
+</UserControl>
