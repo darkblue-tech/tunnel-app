@@ -49,7 +49,7 @@ jobs:
           - target: freebsd-x64
             os: ubuntu-latest
             archive_ext: tar.gz
-            self_contained: 'false'
+            self_contained: 'true'
 
     steps:
       - name: Checkout
@@ -91,18 +91,18 @@ jobs:
           mkdir -p out/dist
           tar -czvf out/dist/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.tar.gz -C out/${{ matrix.target }} .
 
-      - name: Install Inno Setup
+      - name: Install NSIS
         if: runner.os == 'Windows'
         shell: powershell
         run: |
-          choco install innosetup -y
+          choco install nsis -y
 
-      - name: Build Windows Installers (Offline & Web)
+      - name: Build NSIS Installers (Offline & Web)
         if: runner.os == 'Windows'
         shell: cmd
         run: |
-          iscc /DAppVersion=${{ steps.version.outputs.val }} /DArch=${{ matrix.target }} /DSourceDir=..\out\${{ matrix.target }} installer\setup.iss
-          iscc /DAppVersion=${{ steps.version.outputs.val }} /DArch=${{ matrix.target }} /DDownloadUrl=https://github.com/darkblue-tech/tunnel-app/releases/download/v${{ steps.version.outputs.val }}/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.zip installer\web-setup.iss
+          makensis /DAPP_VERSION=${{ steps.version.outputs.val }} /DARCH=${{ matrix.target }} /DSOURCE_DIR=..\out\${{ matrix.target }} installer\setup.nsi
+          makensis /DAPP_VERSION=${{ steps.version.outputs.val }} /DARCH=${{ matrix.target }} /DDOWNLOAD_URL=https://github.com/darkblue-tech/tunnel-app/releases/download/v${{ steps.version.outputs.val }}/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.zip installer\web-setup.nsi
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4

@@ -15,14 +15,10 @@ mkdir -p "${ROOT_DIR}/out/installers"
 
 for TARGET in "${TARGETS[@]}"; do
   echo "--> Publishing ${TARGET}..."
-  SELF_CONTAINED="true"
-  if [[ "${TARGET}" == "freebsd-x64" ]]; then
-    SELF_CONTAINED="false"
-  fi
   dotnet publish "${ROOT_DIR}/Client.Desktop/Client.Desktop.csproj" \
     -c Release \
     -r "${TARGET}" \
-    --self-contained "${SELF_CONTAINED}" \
+    --self-contained true \
     -o "${ROOT_DIR}/out/${TARGET}"
 
   if [[ "${TARGET}" == win-* ]]; then
