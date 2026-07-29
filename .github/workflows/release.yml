@@ -25,24 +25,31 @@ jobs:
           - target: win-x64
             os: windows-latest
             archive_ext: zip
+            self_contained: 'true'
           - target: win-arm64
             os: windows-latest
             archive_ext: zip
+            self_contained: 'true'
           - target: linux-x64
             os: ubuntu-latest
             archive_ext: tar.gz
+            self_contained: 'true'
           - target: linux-arm64
             os: ubuntu-latest
             archive_ext: tar.gz
+            self_contained: 'true'
           - target: osx-x64
             os: macos-latest
             archive_ext: tar.gz
+            self_contained: 'true'
           - target: osx-arm64
             os: macos-latest
             archive_ext: tar.gz
+            self_contained: 'true'
           - target: freebsd-x64
             os: ubuntu-latest
             archive_ext: tar.gz
+            self_contained: 'false'
 
     steps:
       - name: Checkout
@@ -66,9 +73,9 @@ jobs:
           fi
           echo "val=${VER}" >> $GITHUB_OUTPUT
 
-      - name: Publish Self-Contained Desktop
+      - name: Publish Desktop Client
         run: |
-          dotnet publish Client.Desktop/Client.Desktop.csproj -c Release -r ${{ matrix.target }} --self-contained true -o out/${{ matrix.target }}
+          dotnet publish Client.Desktop/Client.Desktop.csproj -c Release -r ${{ matrix.target }} --self-contained ${{ matrix.self_contained }} -o out/${{ matrix.target }}
 
       - name: Pack Archive (Windows ZIP)
         if: runner.os == 'Windows'
