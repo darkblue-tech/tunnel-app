@@ -1,0 +1,72 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Client.Desktop.ViewModels"
+        xmlns:v="using:Client.Desktop.Views"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="800"
+        Width="500" Height="800"
+        x:Class="Client.Desktop.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/app.ico"
+        Title="DarkTunnel Client"
+        TransparencyLevelHint="Mica"
+        Background="{DynamicResource BgPrimary}"
+        ExtendClientAreaToDecorationsHint="True"
+        WindowStartupLocation="CenterScreen">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <Window.DataTemplates>
+        <DataTemplate DataType="{x:Type vm:LoginViewModel}">
+            <v:LoginView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:MainViewModel}">
+            <v:MainView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:StatsViewModel}">
+            <v:StatsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <v:SettingsView />
+        </DataTemplate>
+    </Window.DataTemplates>
+
+    <Grid>
+        <!-- Main Router Content -->
+        <TransitioningContentControl Content="{Binding CurrentViewModel}" />
+
+        <!-- Logs Overlay (Bottom Sheet) -->
+        <Border Background="{DynamicResource BgSecondary}" 
+                CornerRadius="16,16,0,0"
+                VerticalAlignment="Bottom"
+                Height="300"
+                Margin="0,0,0,0"
+                IsVisible="{Binding IsLogsPanelOpen}"
+                BoxShadow="0 -4 10 0 #20000000">
+            <Grid RowDefinitions="Auto,*">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="20,15,20,10">
+                    <TextBlock Grid.Column="0" Text="Logs" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+                    <Button Grid.Column="1" Command="{Binding ToggleLogsPanelCommand}" Background="Transparent" BorderThickness="0">
+                        <Svg Path="avares://DarkTunnel Client/Assets/Icons/chevron-down.svg" Width="24" Height="24"/>
+                    </Button>
+                </Grid>
+                
+                <ScrollViewer Grid.Row="1" Margin="20,0,20,20">
+                    <TextBox Text="{Binding GlobalLogs}" 
+                             IsReadOnly="True"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             FontFamily="{StaticResource InterFont}" 
+                             FontSize="12" FontWeight="Bold"
+                             Foreground="{DynamicResource TextAccent}"
+                             TextWrapping="Wrap" />
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
+
+

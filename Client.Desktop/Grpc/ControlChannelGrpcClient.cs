@@ -1,0 +1,249 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Grpc.Core;
+using Grpc.Net.Client;
+using Client.Desktop.Services;
+
+namespace Client.Desktop.Grpc;
+
+/// <summary>
+/// gRPC client for tunnel control channel.
+/// Implements type-safe bi-directional stream communication with server.
+/// </summary>
+public class ControlChannelGrpcClient : IControlChannelClient
+{
+    private GrpcChannel? _channel;
+    private TunnelControl.TunnelControlClient? _client;
+    private AsyncDuplexStreamingCall<ControlMessage, ControlResponse>? _streamCall;
+    private CancellationTokenSource? _cts;
+
+    /// <summary>
+    /// Connects to gRPC server and establishes control channel.
+    /// </summary>
+    public async Task ConnectAsync(Uri uri, CancellationToken cancellationToken = default)
+    {
+        var channelOptions = new GrpcChannelOptions
+        {
+            HttpHandler = new SocketsHttpHandler 
+            { 
+                UseProxy = false, // Disable proxy to avoid gRPC HTTP/2 proxy issues
+                KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,
+                KeepAlivePingDelay = TimeSpan.FromSeconds(30),
+                KeepAlivePingTimeout = TimeSpan.FromSeconds(10)
+            },
+            DisposeHttpClient = true,
+            MaxReceiveMessageSize = 16 * 1024 * 1024 // 16MB
+        };
+
+        if (uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase))
+        {
+            channelOptions.Credentials = ChannelCredentials.Insecure;
+        }
+
+        _channel = GrpcChannel.ForAddress(uri, channelOptions);
+        _client = new TunnelControl.TunnelControlClient(_channel);
+        _cts = new CancellationTokenSource();
+
+        // Start bi-directional stream
+        _streamCall = _client.StreamControlMessages(cancellationToken: cancellationToken);
+    }
+
+    /// <summary>
+    /// Sends authentication message to server.
+    /// </summary>
+    public async Task SendAuthAsync(string clientName, string? accessToken = null)
+    {
+        if (_streamCall?.RequestStream == null)
+            throw new InvalidOperationException("Not connected to gRPC server");
+
+        var message = new ControlMessage 
+        { 
+            Auth = new AuthMessage 
+            { 
+                ClientName = clientName,
+                AccessToken = accessToken ?? ""
+            }
+        };
+
+        await _streamCall.RequestStream.WriteAsync(message);
+    }
+
+    /// <summary>
+    /// Sends heartbeat ping to server.
+    /// </summary>
+    public async Task SendPingAsync()
+    {
+        if (_streamCall?.RequestStream == null)
+            throw new InvalidOperationException("Not connected to gRPC server");
+
+        var message = new ControlMessage 
+        { 
+            Ping = new PingMessage()
+        };
+
+        await _streamCall.RequestStream.WriteAsync(message);
+    }
+
+    /// <summary>
+    /// Sends tunnel registration request to server.
+    /// </summary>
+    public async Task SendRegisterTunnelAsync(
+        string subdomain,
+        string localHost,
+        int localPort,
+        int publicPort = 0)
+    {
+        if (_streamCall?.RequestStream == null)
+            throw new InvalidOperationException("Not connected to gRPC server");
+
+        var message = new ControlMessage 
+        { 
+            RegisterTunnel = new RegisterTunnelMessage 
+            { 
+                Subdomain = subdomain,
+                LocalHost = localHost,
+                LocalPort = localPort,
+                PublicPort = publicPort
+            }
+        };
+
+        await _streamCall.RequestStream.WriteAsync(message);
+    }
+
+    /// <summary>
+    /// Sends stream data to server (binary payload, no base64 encoding needed).
+    /// </summary>
+    public async Task SendStreamDataAsync(string streamId, byte[] payload)
+    {
+        if (_streamCall?.RequestStream == null)
+            throw new InvalidOperationException("Not connected to gRPC server");
+
+        var message = new ControlMessage 
+        { 
+            StreamData = new StreamDataMessage 
+            { 
+                StreamId = streamId,
+                Payload = Google.Protobuf.ByteString.CopyFrom(payload)
+            }
+        };
+
+        await _streamCall.RequestStream.WriteAsync(message);
+    }
+
+    /// <summary>
+    /// Sends stream close notification to server.
+    /// </summary>
+    public async Task SendStreamCloseAsync(string streamId)
+    {
+        if (_streamCall?.RequestStream == null)
+            throw new InvalidOperationException("Not connected to gRPC server");
+
+        var message = new ControlMessage 
+        { 
+            StreamClose = new StreamCloseMessage 
+            { 
+                StreamId = streamId
+            }
+        };
+
+        await _streamCall.RequestStream.WriteAsync(message);
+    }
+
+    /// <summary>
+    /// Receives response from server.
+    /// Returns null when stream is closed.
+    /// </summary>
+    public async Task<ControlMessageDto?> ReceiveAsync(CancellationToken cancellationToken = default)
+    {
+        if (_streamCall?.ResponseStream == null)
+            throw new InvalidOperationException("Not connected to gRPC server");
+
+        try
+        {
+            if (await _streamCall.ResponseStream.MoveNext(cancellationToken))
+            {
+                var resp = _streamCall.ResponseStream.Current;
+                var dto = new ControlMessageDto();
+                
+                switch (resp.PayloadCase)
+                {
+                    case ControlResponse.PayloadOneofCase.AuthOk:
+                        dto.Type = "auth_ok";
+                        dto.ClientId = resp.AuthOk.ClientId;
+                        break;
+                    case ControlResponse.PayloadOneofCase.AuthError:
+                        dto.Type = "auth_error";
+                        dto.Error = resp.AuthError.Error;
+                        break;
+                    case ControlResponse.PayloadOneofCase.Pong:
+                        dto.Type = "pong";
+                        break;
+                    case ControlResponse.PayloadOneofCase.RegisterAck:
+                        dto.Type = "register_ack";
+                        dto.PublicUrl = resp.RegisterAck.PublicUrl;
+                        break;
+                    case ControlResponse.PayloadOneofCase.RegisterError:
+                        dto.Type = "register_error";
+                        dto.Error = resp.RegisterError.Error;
+                        break;
+                    case ControlResponse.PayloadOneofCase.OpenStream:
+                        dto.Type = "open_stream";
+                        dto.StreamId = resp.OpenStream.StreamId;
+                        break;
+                    case ControlResponse.PayloadOneofCase.StreamData:
+                        dto.Type = "stream_data";
+                        dto.StreamId = resp.StreamData.StreamId;
+                        dto.Payload = resp.StreamData.Payload.ToByteArray();
+                        break;
+                    case ControlResponse.PayloadOneofCase.StreamClose:
+                        dto.Type = "stream_close";
+                        dto.StreamId = resp.StreamClose.StreamId;
+                        break;
+                    default:
+                        dto.Type = "unknown";
+                        break;
+                }
+                return dto;
+            }
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled)
+        {
+            // Stream was cancelled or closed normally
+        }
+
+        return null;
+    }
+
+
+
+    /// <summary>
+    /// Closes the connection gracefully and releases resources.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_streamCall?.RequestStream != null)
+            {
+                await _streamCall.RequestStream.CompleteAsync();
+            }
+        }
+        catch
+        {
+            // Ignore errors during cleanup
+        }
+
+        _cts?.Cancel();
+        _cts?.Dispose();
+
+        if (_channel != null)
+        {
+            await _channel.ShutdownAsync();
+            _channel.Dispose();
+        }
+
+        _streamCall?.Dispose();
+    }
+}

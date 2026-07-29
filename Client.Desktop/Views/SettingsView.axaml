@@ -1,0 +1,160 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Client.Desktop.ViewModels"
+             x:Class="Client.Desktop.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20,72,20,20">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <Panel Grid.Column="0" Width="218" Height="56" HorizontalAlignment="Left" VerticalAlignment="Top">
+                <Image Source="avares://DarkTunnel Client/Assets/Images/darktunnel_logo.png" IsVisible="{DynamicResource IsLightTheme}" RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                <Image Source="avares://DarkTunnel Client/Assets/Images/darktunnel_white_logo.png" IsVisible="{DynamicResource IsDarkTheme}" RenderOptions.BitmapInterpolationMode="HighQuality"/>
+            </Panel>
+            
+            <Button Grid.Column="1" Command="{Binding GoBackCommand}" 
+                    Background="Transparent" BorderThickness="0" CornerRadius="100" Padding="0" Cursor="Hand">
+                <Svg Path="{DynamicResource ReturnBtnPath}" Width="64" Height="64"/>
+            </Button>
+        </Grid>
+
+        <!-- Main Content -->
+        <ScrollViewer Grid.Row="1" Margin="0,20,0,0">
+            <StackPanel Spacing="20">
+                <!-- Account Section -->
+                <StackPanel Spacing="5">
+                    <TextBlock Text="{DynamicResource Str_Account}" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Margin="10,0"/>
+                    <Border Background="{DynamicResource BgSecondary}" BorderBrush="{DynamicResource Stroke}" 
+                            BorderThickness="2" CornerRadius="12" Padding="20">
+                        <StackPanel Spacing="10">
+                            <StackPanel Spacing="0">
+                                <TextBlock Text="{DynamicResource Str_Name}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                                <TextBlock Text="{Binding UserName}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextAccent}"/>
+                            </StackPanel>
+                            
+                            <StackPanel Spacing="0">
+                                <TextBlock Text="{DynamicResource Str_License}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                                <TextBlock Text="{DynamicResource Str_EnterpriseLicense}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextAccent}"/>
+                            </StackPanel>
+                            
+                            <Button Command="{Binding LogOutCommand}" Background="{DynamicResource BgPrimary}" 
+                                    BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="4" Padding="10,5" Margin="0,10,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="{DynamicResource Str_LogOut}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <Svg Path="avares://DarkTunnel Client/Assets/Icons/log-out.svg" Width="14" Height="14"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Preferences Section -->
+                <StackPanel Spacing="5">
+                    <TextBlock Text="{DynamicResource Str_Preferences}" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Margin="10,0"/>
+                    <Border Background="{DynamicResource BgSecondary}" BorderBrush="{DynamicResource Stroke}" 
+                            BorderThickness="2" CornerRadius="12" Padding="20">
+                        <StackPanel Spacing="15">
+                            <ToggleButton IsChecked="{Binding RunAtStartup}" Classes="CleanToggle">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Panel>
+                                        <Rectangle Fill="#D09A74" Width="24" Height="24" IsVisible="{Binding RunAtStartup}">
+                                            <Rectangle.OpacityMask>
+                                                <VisualBrush>
+                                                    <VisualBrush.Visual>
+                                                        <Svg Path="avares://DarkTunnel Client/Assets/Icons/square-check.svg" />
+                                                    </VisualBrush.Visual>
+                                                </VisualBrush>
+                                            </Rectangle.OpacityMask>
+                                        </Rectangle>
+                                        <Rectangle Fill="#D09A74" Width="24" Height="24" IsVisible="{Binding !RunAtStartup}">
+                                            <Rectangle.OpacityMask>
+                                                <VisualBrush>
+                                                    <VisualBrush.Visual>
+                                                        <Svg Path="avares://DarkTunnel Client/Assets/Icons/square.svg" />
+                                                    </VisualBrush.Visual>
+                                                </VisualBrush>
+                                            </Rectangle.OpacityMask>
+                                        </Rectangle>
+                                    </Panel>
+                                    <TextBlock Text="{DynamicResource Str_RunAtStartup}" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </ToggleButton>
+                            <ToggleButton IsChecked="{Binding StartMinimized}" Classes="CleanToggle">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Panel>
+                                        <Rectangle Fill="#D09A74" Width="24" Height="24" IsVisible="{Binding StartMinimized}">
+                                            <Rectangle.OpacityMask>
+                                                <VisualBrush>
+                                                    <VisualBrush.Visual>
+                                                        <Svg Path="avares://DarkTunnel Client/Assets/Icons/square-check.svg" />
+                                                    </VisualBrush.Visual>
+                                                </VisualBrush>
+                                            </Rectangle.OpacityMask>
+                                        </Rectangle>
+                                        <Rectangle Fill="#D09A74" Width="24" Height="24" IsVisible="{Binding !StartMinimized}">
+                                            <Rectangle.OpacityMask>
+                                                <VisualBrush>
+                                                    <VisualBrush.Visual>
+                                                        <Svg Path="avares://DarkTunnel Client/Assets/Icons/square.svg" />
+                                                    </VisualBrush.Visual>
+                                                </VisualBrush>
+                                            </Rectangle.OpacityMask>
+                                        </Rectangle>
+                                    </Panel>
+                                    <TextBlock Text="{DynamicResource Str_StartMinimized}" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </ToggleButton>
+                            <ToggleButton IsChecked="{Binding CloseToTray}" Classes="CleanToggle">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Panel>
+                                        <Rectangle Fill="#D09A74" Width="24" Height="24" IsVisible="{Binding CloseToTray}">
+                                            <Rectangle.OpacityMask>
+                                                <VisualBrush>
+                                                    <VisualBrush.Visual>
+                                                        <Svg Path="avares://DarkTunnel Client/Assets/Icons/square-check.svg" />
+                                                    </VisualBrush.Visual>
+                                                </VisualBrush>
+                                            </Rectangle.OpacityMask>
+                                        </Rectangle>
+                                        <Rectangle Fill="#D09A74" Width="24" Height="24" IsVisible="{Binding !CloseToTray}">
+                                            <Rectangle.OpacityMask>
+                                                <VisualBrush>
+                                                    <VisualBrush.Visual>
+                                                        <Svg Path="avares://DarkTunnel Client/Assets/Icons/square.svg" />
+                                                    </VisualBrush.Visual>
+                                                </VisualBrush>
+                                            </Rectangle.OpacityMask>
+                                        </Rectangle>
+                                    </Panel>
+                                    <TextBlock Text="{DynamicResource Str_CloseToTray}" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </ToggleButton>
+
+                            <StackPanel Spacing="5" Margin="0,10,0,0">
+                                <TextBlock Text="{DynamicResource Str_Theme}" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource TextPrimary}"/>
+                                <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme}" Width="200" Background="{DynamicResource BgPrimary}" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="5">
+                                <TextBlock Text="{DynamicResource Str_Language}" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource TextPrimary}"/>
+                                <ComboBox ItemsSource="{Binding Languages}" SelectedItem="{Binding Language}" Width="200" Background="{DynamicResource BgPrimary}" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="5">
+                                <TextBlock Text="{DynamicResource Str_Transport}" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource TextPrimary}"/>
+                                <ComboBox ItemsSource="{Binding Transports}" SelectedItem="{Binding Transport}" Width="200" Background="{DynamicResource BgPrimary}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Version -->
+        <TextBlock Grid.Row="2" Text="{Binding AppVersionDisplay}" 
+                   HorizontalAlignment="Center" Margin="0,20,0,0"
+                   Foreground="#999999" FontWeight="Bold" FontSize="16" />
+    </Grid>
+</UserControl>
+
+
