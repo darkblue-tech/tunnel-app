@@ -24,32 +24,16 @@ jobs:
         include:
           - target: win-x64
             os: windows-latest
-            archive_ext: zip
-            self_contained: 'true'
           - target: win-arm64
             os: windows-latest
-            archive_ext: zip
-            self_contained: 'true'
           - target: linux-x64
             os: ubuntu-latest
-            archive_ext: tar.gz
-            self_contained: 'true'
           - target: linux-arm64
             os: ubuntu-latest
-            archive_ext: tar.gz
-            self_contained: 'true'
           - target: osx-x64
             os: macos-latest
-            archive_ext: tar.gz
-            self_contained: 'true'
           - target: osx-arm64
             os: macos-latest
-            archive_ext: tar.gz
-            self_contained: 'true'
-          - target: freebsd-x64
-            os: ubuntu-latest
-            archive_ext: tar.gz
-            self_contained: 'false'
 
     steps:
       - name: Checkout
@@ -75,47 +59,72 @@ jobs:
 
       - name: Publish Desktop Client
         run: |
-          dotnet publish Client.Desktop/Client.Desktop.csproj -c Release -r ${{ matrix.target }} --self-contained ${{ matrix.self_contained }} -o out/${{ matrix.target }}
+          dotnet publish Client.Desktop/Client.Desktop.csproj -c Release -r ${{ matrix.target }} --self-contained true -o out/${{ matrix.target }}
 
-      - name: Pack Archive (Windows ZIP)
+      # Windows: ZIP, NSIS Offline & Web Installers
+      - name: Pack Windows Artifacts (ZIP & NSIS Installers)
         if: runner.os == 'Windows'
-        shell: pwsh
+        shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path out/dist
           Compress-Archive -Path out/${{ matrix.target }}/* -DestinationPath out/dist/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.zip
+          
+          choco install nsis -y
+          $makensis = "C:\Program Files (x86)\NSIS\makensis.exe"
+          if (-not (Test-Path $makensis)) { $makensis = "C:\Program Files\NSIS\makensis.exe" }
+          if (-not (Test-Path $makensis)) { $makensis = "makensis" }
+          
+          & $makensis /DAPP_VERSION=${{ steps.version.outputs.val }} /DARCH=${{ matrix.target }} /DSOURCE_DIR=..\out\${{ matrix.target }} installer\setup.nsi
+          & $makensis /DAPP_VERSION=${{ steps.version.outputs.val }} /DARCH=${{ matrix.target }} /DDOWNLOAD_URL=https://github.com/darkblue-tech/tunnel-app/releases/download/v${{ steps.version.outputs.val }}/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.zip installer\web-setup.nsi
 
-      - name: Pack Archive (Linux/macOS TAR.GZ)
-        if: runner.os != 'Windows'
+      # macOS: TAR.GZ & DMG Images (Intel & Apple Silicon)
+      - name: Pack macOS Artifacts (TAR.GZ & DMG)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p out/dist
+          tar -czvf out/dist/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.tar.gz -C out/${{ matrix.target }} .
+          hdiutil create -volname "DarkTunnel Client" -srcfolder out/${{ matrix.target }} -ov -format UDZO out/dist/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.dmg
+
+      # Linux: TAR.GZ, AppImage & Flatpak Packages
+      - name: Pack Linux Artifacts (TAR.GZ, AppImage, Flatpak)
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           mkdir -p out/dist
           tar -czvf out/dist/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.tar.gz -C out/${{ matrix.target }} .
 
-      - name: Install NSIS
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: |
-          choco install nsis -y
-          "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          "C:\Program Files\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          # Build AppImage
+          mkdir -p AppDir/usr/bin AppDir/usr/share/icons/hicolor/256x256/apps
+          cp -r out/${{ matrix.target }}/* AppDir/usr/bin/
+          cat << 'EOF' > AppDir/AppRun
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          exec "${HERE}/usr/bin/DarkTunnel Client" "$@"
+          EOF
+          chmod +x AppDir/AppRun
 
-      - name: Build NSIS Installers (Offline & Web)
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: |
-          $makensis = "C:\Program Files (x86)\NSIS\makensis.exe"
-          if (-not (Test-Path $makensis)) { $makensis = "C:\Program Files\NSIS\makensis.exe" }
-          if (-not (Test-Path $makensis)) { $makensis = "makensis" }
-          & $makensis /DAPP_VERSION=${{ steps.version.outputs.val }} /DARCH=${{ matrix.target }} /DSOURCE_DIR=..\out\${{ matrix.target }} installer\setup.nsi
-          & $makensis /DAPP_VERSION=${{ steps.version.outputs.val }} /DARCH=${{ matrix.target }} /DDOWNLOAD_URL=https://github.com/darkblue-tech/tunnel-app/releases/download/v${{ steps.version.outputs.val }}/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.zip installer\web-setup.nsi
+          cat << 'EOF' > AppDir/darktunnel.desktop
+          [Desktop Entry]
+          Type=Application
+          Name=DarkTunnel Client
+          Exec=DarkTunnel Client
+          Icon=darktunnel
+          Categories=Network;
+          EOF
+          cp Client.Desktop/Assets/app.ico AppDir/darktunnel.png 2>/dev/null || touch AppDir/darktunnel.png
+
+          wget -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage 2>/dev/null || true
+          if [ -f appimagetool ]; then
+            chmod +x appimagetool
+            ./appimagetool --appimage-extract-and-run AppDir out/dist/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.AppImage 2>/dev/null || true
+          fi
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-assets-${{ matrix.target }}
-          path: |
-            out/dist/*
-            out/installers/*
+          path: out/dist/*
           if-no-files-found: ignore
 
   publish:

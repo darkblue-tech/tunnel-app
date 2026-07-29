@@ -52,7 +52,7 @@ RequestExecutionLevel admin
 !insertmacro MUI_LANGUAGE "Russian"
 
 Name "${PRODUCT_NAME} v${APP_VERSION}"
-OutFile "..\out\installers\DarkTunnel-Client-Setup-v${APP_VERSION}-${ARCH}.exe"
+OutFile "..\out\dist\DarkTunnel-Client-Setup-v${APP_VERSION}-${ARCH}.exe"
 InstallDir "$PROGRAMFILES64\DarkTunnel Client"
 ShowInstDetails show
 ShowUnInstDetails show

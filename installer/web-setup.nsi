@@ -52,26 +52,26 @@ RequestExecutionLevel admin
 !insertmacro MUI_LANGUAGE "Russian"
 
 Name "${PRODUCT_NAME} v${APP_VERSION} (Web Setup)"
-OutFile "..\out\installers\DarkTunnel-Client-WebSetup-v${APP_VERSION}-${ARCH}.exe"
+OutFile "..\out\dist\DarkTunnel-Client-WebSetup-v${APP_VERSION}-${ARCH}.exe"
 InstallDir "$PROGRAMFILES64\DarkTunnel Client"
 ShowInstDetails show
 ShowUnInstDetails show
 
 Section "MainSection" SEC01
   SetOutPath "$INSTDIR"
+  InitPluginsDir
   
   DetailPrint "Downloading release payload from ${DOWNLOAD_URL}..."
   NSISdl::download "${DOWNLOAD_URL}" "$PLUGINSDIR\payload.zip"
   Pop $R0
   StrCmp $R0 "success" download_ok
   
-  ; Fallback to powershell download if NSISdl fails
   DetailPrint "Downloading via PowerShell..."
-  ExecWait 'powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile(''${DOWNLOAD_URL}'', ''$PLUGINSDIR\payload.zip'')"' $R0
+  nsExec::Exec 'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile(\"${DOWNLOAD_URL}\", \"$PLUGINSDIR\\payload.zip\")"'
   
 download_ok:
   DetailPrint "Extracting application payload..."
-  ExecWait 'powershell -Command "Expand-Archive -Path ''$PLUGINSDIR\payload.zip'' -DestinationPath ''$INSTDIR'' -Force"' $R0
+  nsExec::Exec 'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -Path \"$PLUGINSDIR\\payload.zip\" -DestinationPath \"$INSTDIR\" -Force"'
 
   ; Create Shortcuts
   CreateDirectory "$SMPROGRAMS\DarkTunnel Client"
