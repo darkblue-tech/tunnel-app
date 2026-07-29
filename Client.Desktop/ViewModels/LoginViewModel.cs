@@ -13,7 +13,7 @@ public partial class LoginViewModel : ViewModelBase
         _parent = parent;
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task LoginAsync()
     {
         await _parent.LoginAndLoadTunnelsAsync();

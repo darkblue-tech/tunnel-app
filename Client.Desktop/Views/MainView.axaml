@@ -84,7 +84,15 @@
                     <Button Grid.Column="3" Command="{Binding PullTunnelsCommand}" Width="92" Height="32"
                             Background="Transparent" BorderBrush="{DynamicResource Stroke}" BorderThickness="2" CornerRadius="8" Padding="0">
                         <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Svg Path="avares://DarkTunnel Client/Assets/Icons/database-arrow-down.svg" Width="24" Height="24" />
+                            <Rectangle Fill="#D09A74" Width="24" Height="24">
+                                <Rectangle.OpacityMask>
+                                    <VisualBrush>
+                                        <VisualBrush.Visual>
+                                            <Svg Path="avares://DarkTunnel Client/Assets/Icons/database-arrow-down.svg" />
+                                        </VisualBrush.Visual>
+                                    </VisualBrush>
+                                </Rectangle.OpacityMask>
+                            </Rectangle>
                             <TextBlock Text="Pull" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource IconPrimary}"/>
                         </StackPanel>
                     </Button>

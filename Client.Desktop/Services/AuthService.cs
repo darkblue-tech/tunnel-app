@@ -47,6 +47,10 @@ public class AuthService
         var codeVerifier = GenerateCodeVerifier();
         var codeChallenge = GenerateCodeChallenge(codeVerifier);
 
+        if (AuthCodeCompletionSource != null && !AuthCodeCompletionSource.Task.IsCompleted)
+        {
+            AuthCodeCompletionSource.TrySetCanceled();
+        }
         AuthCodeCompletionSource = new TaskCompletionSource<string>();
 
         var authUrl = $"https://tunnel.darkblue.tech/api/v1/auth/app/login?challenge={codeChallenge}";
@@ -70,9 +74,13 @@ public class AuthService
                 return serverToken;
             }
         }
+        catch (TaskCanceledException)
+        {
+            return null; // Indicates it was cancelled by a new login attempt
+        }
         catch (Exception)
         {
-            // Handle exceptions
+            // Handle other exceptions
         }
 
         return string.Empty;
