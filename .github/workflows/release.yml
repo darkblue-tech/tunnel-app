@@ -84,11 +84,11 @@ jobs:
           mkdir -p out/dist
           tar -czvf out/dist/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.tar.gz -C out/${{ matrix.target }} .
 
-      - name: Setup Inno Setup
+      - name: Install Inno Setup
         if: runner.os == 'Windows'
-        uses: dotnet/actions-setup-inno-setup@v1
-        with:
-          version: '6.2.2'
+        shell: powershell
+        run: |
+          choco install innosetup -y
 
       - name: Build Windows Installers (Offline & Web)
         if: runner.os == 'Windows'
