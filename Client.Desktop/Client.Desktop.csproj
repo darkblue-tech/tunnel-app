@@ -8,7 +8,7 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>DarkTunnel Client</AssemblyName>
-    <ApplicationVersion>1.0.1.0 Romeo</ApplicationVersion>
+    <ApplicationVersion>1.0.1.0</ApplicationVersion>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Company>darkblue.tech</Company>
     <Authors>Artem Ratushnyak</Authors>
@@ -47,6 +47,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
+    <PackageReference Include="Microsoft.Native.Quic.MsQuic" Version="2.4.7" />
   </ItemGroup>
 
   <ItemGroup>

@@ -22,6 +22,9 @@ public partial class StatsViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _currentTxText = "0 KB/s";
 
+    [ObservableProperty]
+    private TimeSpan _chartAnimationsSpeed = TimeSpan.FromMilliseconds(1000);
+
     public ObservableCollection<ISeries> Series { get; set; }
     public Axis[] XAxes { get; set; }
     public Axis[] YAxes { get; set; }
@@ -92,6 +95,11 @@ public partial class StatsViewModel : ViewModelBase, IDisposable
     {
         Dispatcher.UIThread.Post(() =>
         {
+            if (ChartAnimationsSpeed.TotalMilliseconds > 0)
+            {
+                ChartAnimationsSpeed = TimeSpan.Zero;
+            }
+
             CurrentRxText = $"{rx:F1} KB/s";
             CurrentTxText = $"{tx:F1} KB/s";
 

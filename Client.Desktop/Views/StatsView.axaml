@@ -37,7 +37,7 @@
             <!-- Chart -->
             <Border Grid.Row="1" Background="{DynamicResource BgSecondary}" BorderBrush="{DynamicResource Stroke}" 
                     BorderThickness="2" CornerRadius="16" Padding="20">
-                <lvc:CartesianChart Series="{Binding Series}" XAxes="{Binding XAxes}" YAxes="{Binding YAxes}" TooltipPosition="Hidden" />
+                <lvc:CartesianChart Series="{Binding Series}" XAxes="{Binding XAxes}" YAxes="{Binding YAxes}" AnimationsSpeed="{Binding ChartAnimationsSpeed}" TooltipPosition="Hidden" />
             </Border>
         </Grid>
     </Grid>

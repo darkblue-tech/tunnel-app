@@ -160,7 +160,7 @@ public class TunnelEngine
                     break;
                 case "auth_error":
                     Log($"Auth failed: {message.Error}");
-                    if (message.Error == "token_expired")
+                    if (message.Error == "token_expired" || message.Error == "token_invalid")
                     {
                         OnTokenExpired?.Invoke();
                     }

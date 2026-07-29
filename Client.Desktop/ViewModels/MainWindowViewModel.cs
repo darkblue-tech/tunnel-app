@@ -156,6 +156,11 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         StatusKey = "Str_Status_Authenticating";
         var token = await _authService.LoginAsync();
+        if (token == null)
+        {
+            // Cancelled by another concurrent login attempt. Do nothing.
+            return;
+        }
         
         if (string.IsNullOrEmpty(token))
         {
