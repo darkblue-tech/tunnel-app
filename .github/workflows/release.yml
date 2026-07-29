@@ -75,7 +75,6 @@ jobs:
           if (-not (Test-Path $makensis)) { $makensis = "makensis" }
           
           & $makensis /DAPP_VERSION=${{ steps.version.outputs.val }} /DARCH=${{ matrix.target }} /DSOURCE_DIR=..\out\${{ matrix.target }} installer\setup.nsi
-          & $makensis /DAPP_VERSION=${{ steps.version.outputs.val }} /DARCH=${{ matrix.target }} /DDOWNLOAD_URL=https://github.com/darkblue-tech/tunnel-app/releases/download/v${{ steps.version.outputs.val }}/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.zip installer\web-setup.nsi
 
       # macOS: TAR.GZ & DMG Images (Intel & Apple Silicon)
       - name: Pack macOS Artifacts (TAR.GZ & DMG)
