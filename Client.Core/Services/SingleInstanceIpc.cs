@@ -4,41 +4,31 @@ using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
 public static class SingleInstanceIpc
 {
     private const string PipeName = "darkblue.tech Tunnel IPC";
     private const string MutexName = "DarkTunnelClient_SingleInstance_Mutex";
-    private static Mutex? _appMutex;
 
     public static bool CheckAndForwardArgs(string[] args)
     {
-        bool createdNew = false;
-        try
-        {
-            _appMutex = new Mutex(true, MutexName, out createdNew);
-        }
-        catch (Exception)
-        {
-            // If mutex creation fails, fallback to standard pipe connection
-        }
-
-        if (createdNew)
-        {
-            // We are the first instance, no need to wait 3 seconds for a non-existent pipe.
-            return false;
-        }
-
         try
         {
             using var client = new NamedPipeClientStream(".", PipeName, PipeDirection.Out);
-            client.Connect(3000); // Increased timeout to prevent race condition on fast redirects
+            client.Connect(500); // 500ms timeout
             
             if (args.Length > 0)
             {
                 using var writer = new StreamWriter(client);
                 writer.WriteLine(args[0]);
+                writer.Flush();
+            }
+            else
+            {
+                // Send a wake-up message if no args are provided
+                using var writer = new StreamWriter(client);
+                writer.WriteLine("wakeup");
                 writer.Flush();
             }
             return true;
@@ -52,6 +42,8 @@ public static class SingleInstanceIpc
             return false;
         }
     }
+
+    public static event Action? WakeupRequested;
 
     public static void StartServer()
     {
@@ -67,15 +59,22 @@ public static class SingleInstanceIpc
                     using var reader = new StreamReader(server);
                     var message = await reader.ReadLineAsync();
 
-                    if (!string.IsNullOrEmpty(message) && message.StartsWith("darktunnel://auth"))
+                    if (!string.IsNullOrEmpty(message))
                     {
-                        var uri = new Uri(message);
-                        var query = uri.Query;
-                        if (query.StartsWith("?code="))
+                        if (message.StartsWith("darktunnel://auth"))
                         {
-                            var code = query.Substring(6);
-                            // We use Task.Run to not block the IPC thread
-                            _ = Task.Run(() => AuthService.AuthCodeCompletionSource.TrySetResult(code));
+                            var uri = new Uri(message);
+                            var query = uri.Query;
+                            if (query.StartsWith("?code="))
+                            {
+                                var code = query.Substring(6);
+                                // We use Task.Run to not block the IPC thread
+                                _ = Task.Run(() => AuthService.AuthCodeCompletionSource.TrySetResult(code));
+                            }
+                        }
+                        else if (message == "wakeup")
+                        {
+                            WakeupRequested?.Invoke();
                         }
                     }
                 }

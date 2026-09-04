@@ -3,7 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using System;
-using Client.Desktop.Services;
+using Client.Core.Services;
 
 namespace Client.Desktop.ViewModels;
 

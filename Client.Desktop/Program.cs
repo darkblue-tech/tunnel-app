@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.ReactiveUI;
 using System;
 
+using Client.Core.Services;
+using Client.Core.Models;
 namespace Client.Desktop;
 
 internal static class Program
@@ -12,13 +14,13 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        if (Client.Desktop.Services.SingleInstanceIpc.CheckAndForwardArgs(args))
+        if (Client.Core.Services.SingleInstanceIpc.CheckAndForwardArgs(args))
         {
             return;
         }
 
-        Client.Desktop.Services.ProtocolRegistry.Register();
-        Client.Desktop.Services.SingleInstanceIpc.StartServer();
+        Client.Core.Services.ProtocolRegistry.Register();
+        Client.Core.Services.SingleInstanceIpc.StartServer();
         try
         {
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);

@@ -1,4 +1,4 @@
-using Client.Desktop.Models;
+using Client.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -6,7 +6,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
 public class ApiService
 {

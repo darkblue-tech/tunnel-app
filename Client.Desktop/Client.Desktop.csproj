@@ -8,7 +8,7 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>DarkTunnel Client</AssemblyName>
-    <ApplicationVersion>1.0.1.0</ApplicationVersion>
+    <ApplicationVersion>1.0.2.0</ApplicationVersion>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Company>darkblue.tech</Company>
     <Authors>Artem Ratushnyak</Authors>
@@ -39,21 +39,12 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="SIPSorcery" Version="10.0.12" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
-    <PackageReference Include="Grpc.Net.Client" Version="2.60.0" />
-    <PackageReference Include="Google.Protobuf" Version="3.25.1" />
-    <PackageReference Include="Grpc.Tools" Version="2.60.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
-    <PackageReference Include="Microsoft.Native.Quic.MsQuic.Schannel" Version="2.5.9" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Client.Core\Client.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Protobuf Include="protos/**/*.proto" GrpcServices="Client" />
-  </ItemGroup>
+
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />

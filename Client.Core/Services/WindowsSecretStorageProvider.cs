@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 #pragma warning disable CA1416
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
 public class WindowsSecretStorageProvider : ISecretStorageProvider
 {

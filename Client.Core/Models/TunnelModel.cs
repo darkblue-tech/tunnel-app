@@ -1,6 +1,6 @@
 using System;
 
-namespace Client.Desktop.Models;
+namespace Client.Core.Models;
 
 public class TunnelModel
 {
