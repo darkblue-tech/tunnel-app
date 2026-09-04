@@ -45,32 +45,53 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<TunnelItemViewModel> Tunnels { get; } = new();
 
+    private bool _isLoadingSettings;
+    private bool _isInitializingAutostart;
+
     public MainWindowViewModel()
     {
         _authService = new AuthService();
         _apiService = new ApiService(_authService);
+        
+        _isInitializingAutostart = true;
         RunAtStartup = AutostartHelper.IsAutostartEnabled();
-
-        var storage = new Client.Core.Services.SecretStorage();
-        _ = Task.Run(async () =>
-        {
-            if (bool.TryParse(await storage.GetSecretAsync("close_to_tray"), out var ctt))
-            {
-                CloseToTray = ctt;
-            }
-
-            if (bool.TryParse(await storage.GetSecretAsync("start_minimized"), out var sm))
-            {
-                StartMinimized = sm;
-            }
-        });
+        _isInitializingAutostart = false;
 
         // Default route
         CurrentViewModel = new LoginViewModel(this);
 
+        _ = LoadSettingsAsync();
         _ = InitializeAsync();
         _ = ApplyThemeAsync();
         _ = ApplyLanguageAsync();
+    }
+
+    public async Task LoadSettingsAsync()
+    {
+        try
+        {
+            _isLoadingSettings = true;
+            var storage = new Client.Core.Services.SecretStorage();
+            var cttVal = await storage.GetSecretAsync("close_to_tray");
+            if (bool.TryParse(cttVal, out var ctt))
+            {
+                CloseToTray = ctt;
+            }
+
+            var smVal = await storage.GetSecretAsync("start_minimized");
+            if (bool.TryParse(smVal, out var sm))
+            {
+                StartMinimized = sm;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load preferences: {ex.Message}");
+        }
+        finally
+        {
+            _isLoadingSettings = false;
+        }
     }
 
     private async Task ApplyLanguageAsync()
@@ -190,16 +211,19 @@ public partial class MainWindowViewModel : ViewModelBase
 
     partial void OnRunAtStartupChanged(bool value)
     {
+        if (_isInitializingAutostart) return;
         AutostartHelper.SetAutostart(value);
     }
 
     partial void OnCloseToTrayChanged(bool value)
     {
+        if (_isLoadingSettings) return;
         _ = new Client.Core.Services.SecretStorage().SaveSecretAsync("close_to_tray", value.ToString());
     }
 
     partial void OnStartMinimizedChanged(bool value)
     {
+        if (_isLoadingSettings) return;
         _ = new Client.Core.Services.SecretStorage().SaveSecretAsync("start_minimized", value.ToString());
     }
 

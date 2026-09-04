@@ -12,7 +12,7 @@ public static class AutostartHelper
     private const string AppName = "DarkTunnelClient";
 
     /// <summary>
-    /// Enables or disables application autostart on Windows or Linux.
+    /// Enables or disables application autostart on Windows, macOS, or Linux.
     /// </summary>
     public static void SetAutostart(bool enable)
     {
@@ -23,6 +23,17 @@ public static class AutostartHelper
             Console.WriteLine("Failed to determine process path.");
             return;
         }
+
+        // Handle AppImage on Linux
+        if (OperatingSystem.IsLinux())
+        {
+            var appImage = Environment.GetEnvironmentVariable("APPIMAGE");
+            if (!string.IsNullOrEmpty(appImage) && File.Exists(appImage))
+            {
+                execPath = appImage;
+            }
+        }
+
         // On .NET Core / 5+, Location might be the .dll. We want the executable.
         if (execPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
         {
@@ -43,6 +54,10 @@ public static class AutostartHelper
         {
             SetAutostartLinux(enable, launchCommand);
         }
+        else if (OperatingSystem.IsMacOS())
+        {
+            SetAutostartMacOs(enable, execPath);
+        }
     }
 
     /// <summary>
@@ -57,6 +72,10 @@ public static class AutostartHelper
         else if (OperatingSystem.IsLinux())
         {
             return IsAutostartEnabledLinux();
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            return IsAutostartEnabledMacOs();
         }
         return false;
     }
@@ -140,5 +159,64 @@ X-GNOME-Autostart-enabled=true
     {
         var desktopFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "autostart", $"{AppName}.desktop");
         return File.Exists(desktopFile);
+    }
+
+    private static string GetMacOsPlistPath()
+    {
+        var launchAgentsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "LaunchAgents");
+        return Path.Combine(launchAgentsDir, "tech.darkblue.tunnel.plist");
+    }
+
+    private static void SetAutostartMacOs(bool enable, string execPath)
+    {
+        try
+        {
+            var plistPath = GetMacOsPlistPath();
+            if (enable)
+            {
+                var dir = Path.GetDirectoryName(plistPath);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                var content = $"""
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>tech.darkblue.tunnel</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{execPath}</string>
+        <string>--minimized</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>ProcessType</key>
+    <string>Interactive</string>
+</dict>
+</plist>
+""";
+                File.WriteAllText(plistPath, content);
+            }
+            else
+            {
+                if (File.Exists(plistPath))
+                {
+                    File.Delete(plistPath);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to set macOS autostart: {ex.Message}");
+        }
+    }
+
+    private static bool IsAutostartEnabledMacOs()
+    {
+        return File.Exists(GetMacOsPlistPath());
     }
 }

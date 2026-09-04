@@ -8,13 +8,16 @@ namespace Client.Desktop.ViewModels;
 public partial class SettingsViewModel : ViewModelBase
 {
     private readonly MainWindowViewModel _parent;
+    private bool _isInitializing;
 
     public SettingsViewModel(MainWindowViewModel parent)
     {
         _parent = parent;
+        _isInitializing = true;
         RunAtStartup = parent.RunAtStartup;
         CloseToTray = parent.CloseToTray;
         StartMinimized = parent.StartMinimized;
+        _isInitializing = false;
         _ = LoadProfileAsync();
     }
 
@@ -110,16 +113,19 @@ public partial class SettingsViewModel : ViewModelBase
 
     partial void OnRunAtStartupChanged(bool value)
     {
+        if (_isInitializing) return;
         _parent.RunAtStartup = value;
     }
 
     partial void OnCloseToTrayChanged(bool value)
     {
+        if (_isInitializing) return;
         _parent.CloseToTray = value;
     }
 
     partial void OnStartMinimizedChanged(bool value)
     {
+        if (_isInitializing) return;
         _parent.StartMinimized = value;
     }
 

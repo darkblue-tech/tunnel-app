@@ -16,7 +16,9 @@ public partial class App : Application
     private MainWindow? _mainWindow;
     private TrayIcon? _trayIcon;
 
-    public override void OnFrameworkInitializationCompleted()
+    public static bool IsExiting { get; set; }
+
+    public override async void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -28,16 +30,9 @@ public partial class App : Application
 
             SetupTrayIcon();
 
-            _mainWindow.Closing += (s, e) =>
-            {
-                if (_mainViewModel.CloseToTray)
-                {
-                    e.Cancel = true;
-                    _mainWindow.Hide();
-                }
-            };
-
             desktop.MainWindow = _mainWindow;
+
+            await _mainViewModel.LoadSettingsAsync();
 
             var args = Environment.GetCommandLineArgs();
             bool startMinimized = false;
@@ -269,6 +264,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            IsExiting = true;
             desktop.Shutdown();
         }
     }
