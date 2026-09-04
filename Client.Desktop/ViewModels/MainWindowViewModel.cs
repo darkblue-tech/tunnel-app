@@ -139,14 +139,36 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task InitializeAsync()
     {
-        var token = await _authService.GetTokenAsync();
-        if (!string.IsNullOrEmpty(token))
+        var hasSession = await _authService.HasSavedSessionAsync();
+        if (hasSession)
         {
             IsAuthenticated = true;
             MainVM ??= new MainViewModel(this);
             CurrentViewModel = MainVM;
-            await LoadTunnelsAsync(token);
+
+            string token = string.Empty;
+            // Retry token acquisition to accommodate network establishing during PC boot
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                token = await _authService.GetTokenAsync();
+                if (!string.IsNullOrEmpty(token)) break;
+
+                if (!await _authService.HasSavedSessionAsync())
+                {
+                    await LogOutAsync();
+                    _ = CheckForUpdatesBackgroundAsync();
+                    return;
+                }
+
+                await Task.Delay(1000);
+            }
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                await LoadTunnelsAsync(token);
+            }
         }
+
         _ = CheckForUpdatesBackgroundAsync();
     }
 
@@ -275,10 +297,13 @@ public partial class MainWindowViewModel : ViewModelBase
         var token = await _authService.GetTokenAsync();
         if (string.IsNullOrEmpty(token))
         {
-            IsAuthenticated = false;
-            StatusKey = "Str_Status_SessionExpired";
-            await LogOutAsync();
-            return;
+            if (!await _authService.HasSavedSessionAsync())
+            {
+                IsAuthenticated = false;
+                StatusKey = "Str_Status_SessionExpired";
+                await LogOutAsync();
+                return;
+            }
         }
 
         await LoadTunnelsAsync(token);
