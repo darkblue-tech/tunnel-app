@@ -9,6 +9,9 @@ using System.Threading.Tasks;
 
 namespace Client.Core.Services;
 
+/// <summary>
+/// Service responsible for checking and applying application updates.
+/// </summary>
 public class UpdateService
 {
     private readonly HttpClient _httpClient;
@@ -100,6 +103,9 @@ public class UpdateService
     }
 }
 
+/// <summary>
+/// Represents the result of an update check.
+/// </summary>
 public class UpdateCheckResult
 {
     [JsonPropertyName("hasUpdate")]

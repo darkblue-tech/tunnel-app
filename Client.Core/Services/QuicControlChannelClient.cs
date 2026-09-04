@@ -12,6 +12,10 @@ using System.Threading.Tasks;
 
 namespace Client.Core.Services;
 
+/// <summary>
+/// QUIC implementation of the control channel client.
+/// Provides a fast, multiplexed, and secure connection.
+/// </summary>
 public class QuicControlChannelClient : IControlChannelClient
 {
     private QuicConnection? _connection;

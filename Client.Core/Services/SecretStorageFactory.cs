@@ -3,6 +3,10 @@ using System.Runtime.InteropServices;
 
 namespace Client.Core.Services;
 
+/// <summary>
+/// Factory for resolving and instantiating the correct secure storage provider 
+/// based on the current operating system (Windows, macOS, Linux).
+/// </summary>
 public static class SecretStorageFactory
 {
     private static readonly Lazy<ISecretStorageProvider> _provider = new(() =>
@@ -43,5 +47,9 @@ public static class SecretStorageFactory
         }
     }
 
+    /// <summary>
+    /// Gets the singleton instance of the appropriate secret storage provider.
+    /// </summary>
+    /// <returns>An implementation of ISecretStorageProvider.</returns>
     public static ISecretStorageProvider GetProvider() => _provider.Value;
 }

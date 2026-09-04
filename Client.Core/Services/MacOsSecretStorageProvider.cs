@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 
 namespace Client.Core.Services;
 
+/// <summary>
+/// Provides secure secret storage on macOS using the native Keychain Services API.
+/// </summary>
 public class MacOsSecretStorageProvider : ISecretStorageProvider
 {
     private const string ServiceName = "DarkTunnel";

@@ -10,6 +10,9 @@ using System.Threading.Tasks;
 
 namespace Client.Core.Services;
 
+/// <summary>
+/// Service responsible for managing user authentication, token acquisition, and OAuth2 flow.
+/// </summary>
 public class AuthService
 {
     public static TaskCompletionSource<string> AuthCodeCompletionSource = new();
