@@ -1,4 +1,4 @@
-using Client.Desktop.Services;
+using Client.Core.Services;
 using System.Threading.Tasks;
 using Xunit;
 
