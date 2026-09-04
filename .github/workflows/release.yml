@@ -77,6 +77,64 @@ jobs:
         run: |
           dotnet publish Client.Desktop/Client.Desktop.csproj -c Release -r ${{ matrix.target }} --self-contained ${{ matrix.self_contained }} -o out/${{ matrix.target }}
 
+      - name: Create macOS App Bundle
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          APP_NAME="DarkTunnel Client.app"
+          APP_DIR="out/app/$APP_NAME"
+          CONTENTS_DIR="$APP_DIR/Contents"
+          MACOS_DIR="$CONTENTS_DIR/MacOS"
+          RESOURCES_DIR="$CONTENTS_DIR/Resources"
+          
+          mkdir -p "$MACOS_DIR"
+          mkdir -p "$RESOURCES_DIR"
+          
+          mv out/${{ matrix.target }}/* "$MACOS_DIR/"
+          chmod +x "$MACOS_DIR/DarkTunnel Client"
+          
+          cat > "$CONTENTS_DIR/Info.plist" << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleName</key>
+              <string>DarkTunnel Client</string>
+              <key>CFBundleDisplayName</key>
+              <string>DarkTunnel</string>
+              <key>CFBundleIdentifier</key>
+              <string>tech.darkblue.tunnel</string>
+              <key>CFBundleVersion</key>
+              <string>${{ steps.version.outputs.val }}</string>
+              <key>CFBundleShortVersionString</key>
+              <string>${{ steps.version.outputs.val }}</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleExecutable</key>
+              <string>DarkTunnel Client</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>10.13</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+              <key>CFBundleURLTypes</key>
+              <array>
+                  <dict>
+                      <key>CFBundleURLName</key>
+                      <string>DarkTunnel Protocol</string>
+                      <key>CFBundleURLSchemes</key>
+                      <array>
+                          <string>darktunnel</string>
+                      </array>
+                  </dict>
+              </array>
+          </dict>
+          </plist>
+          EOF
+          
+          rm -rf out/${{ matrix.target }}
+          mkdir -p out/${{ matrix.target }}
+          mv "$APP_DIR" out/${{ matrix.target }}/
+
       - name: Pack Archive (Windows ZIP)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -84,12 +142,58 @@ jobs:
           New-Item -ItemType Directory -Force -Path out/dist
           Compress-Archive -Path out/${{ matrix.target }}/* -DestinationPath out/dist/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.zip
 
-      - name: Pack Archive (Linux/macOS TAR.GZ)
-        if: runner.os != 'Windows'
+      - name: Pack Archive (Linux TAR.GZ)
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           mkdir -p out/dist
           tar -czvf out/dist/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.tar.gz -C out/${{ matrix.target }} .
+
+      - name: Pack AppImage (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          APPDIR="out/AppDir"
+          mkdir -p "$APPDIR/usr/bin"
+          cp -r out/${{ matrix.target }}/* "$APPDIR/usr/bin/"
+          
+          cat > "$APPDIR/AppRun" << 'EOF'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
+          exec "${HERE}/usr/bin/DarkTunnel Client" "$@"
+          EOF
+          chmod +x "$APPDIR/AppRun"
+          
+          cat > "$APPDIR/darktunnel.desktop" << 'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=DarkTunnel Client
+          Exec=DarkTunnel\ Client %u
+          Icon=darktunnel
+          Categories=Network;
+          Terminal=false
+          EOF
+          
+          convert Client.Desktop/Assets/app.ico[0] "$APPDIR/darktunnel.png" || touch "$APPDIR/darktunnel.png"
+          
+          ARCH_DL="x86_64"
+          if [[ "${{ matrix.target }}" == *"arm64"* ]]; then
+             ARCH_DL="aarch64"
+          fi
+          
+          wget -q -O appimagetool "https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-${ARCH_DL}.AppImage"
+          chmod +x appimagetool
+          
+          ./appimagetool --appimage-extract-and-run "$APPDIR" "out/dist/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.AppImage"
+
+      - name: Pack Archive (macOS DMG and TAR.GZ)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p out/dist
+          hdiutil create -volname "DarkTunnel" -srcfolder "out/${{ matrix.target }}/DarkTunnel Client.app" -ov -format UDZO "out/dist/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.dmg"
+          tar -czvf "out/dist/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.tar.gz" -C out/${{ matrix.target }} "DarkTunnel Client.app"
 
       - name: Install NSIS
         if: runner.os == 'Windows'
