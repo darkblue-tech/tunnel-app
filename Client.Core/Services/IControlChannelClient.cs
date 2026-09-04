@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
 public class ControlMessageDto
 {
@@ -20,7 +20,7 @@ public interface IControlChannelClient : IAsyncDisposable
     Task SendAuthAsync(string clientName, string accessToken);
     Task SendPingAsync();
     Task SendRegisterTunnelAsync(string subdomain, string localHost, int localPort, int publicPort = 0);
-    Task SendStreamDataAsync(string streamId, byte[] payload);
+    Task SendStreamDataAsync(string streamId, ReadOnlyMemory<byte> payload);
     Task SendStreamCloseAsync(string streamId);
     Task<ControlMessageDto?> ReceiveAsync(CancellationToken cancellationToken);
 }

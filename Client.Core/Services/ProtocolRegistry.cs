@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
 public static class ProtocolRegistry
 {

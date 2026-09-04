@@ -2,6 +2,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Threading.Tasks;
 
+using Client.Core.Services;
+using Client.Core.Models;
 namespace Client.Desktop.ViewModels;
 
 public partial class LoginViewModel : ViewModelBase

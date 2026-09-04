@@ -8,7 +8,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
 public class AuthService
 {
@@ -86,7 +86,7 @@ public class AuthService
         return string.Empty;
     }
 
-    public async Task<string?> RefreshTokenAsync()
+    public async Task<string?> RefreshTokenAsync(CancellationToken cancellationToken = default)
     {
         var refreshToken = await _secretStorage.GetSecretAsync("refresh_token");
         if (string.IsNullOrEmpty(refreshToken)) return null;
@@ -101,7 +101,7 @@ public class AuthService
                 new System.Collections.Generic.KeyValuePair<string, string>("refresh_token", refreshToken)
             });
 
-            var response = await _httpClient.SendAsync(request);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
@@ -173,6 +173,7 @@ public class AuthService
     {
         try
         {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             // We use the proxy endpoint on our backend to securely inject the client_secret
             var request = new HttpRequestMessage(HttpMethod.Post, "https://tunnel.darkblue.tech/api/v1/auth/app/token");
             request.Content = new FormUrlEncodedContent(new[]
@@ -184,11 +185,11 @@ public class AuthService
                 new System.Collections.Generic.KeyValuePair<string, string>("code_verifier", codeVerifier)
             });
 
-            var response = await _httpClient.SendAsync(request);
+            var response = await _httpClient.SendAsync(request, cts.Token);
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
-                Debug.WriteLine("Raw response: " + json); // Dump the HTML!
+                Debug.WriteLine($"[AuthService] Token response received, length: {json.Length}");
                 try 
                 {
                     var doc = JsonDocument.Parse(json);
@@ -226,10 +227,11 @@ public class AuthService
     {
         try
         {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             var request = new HttpRequestMessage(HttpMethod.Post, "https://tunnel.darkblue.tech/api/v1/auth/exchange");
             request.Content = new StringContent(JsonSerializer.Serialize(new { idToken = idToken }), Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.SendAsync(request);
+            var response = await _httpClient.SendAsync(request, cts.Token);
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();

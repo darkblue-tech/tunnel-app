@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
 // Facade to maintain backward compatibility with existing usage
 public class SecretStorage

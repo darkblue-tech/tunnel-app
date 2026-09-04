@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using System;
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
-using Client.Desktop.Services;
+using Client.Core.Services;
 
 namespace Client.Desktop.ViewModels;
 
@@ -51,7 +51,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _apiService = new ApiService(_authService);
         RunAtStartup = AutostartHelper.IsAutostartEnabled();
 
-        var storage = new Client.Desktop.Services.SecretStorage();
+        var storage = new Client.Core.Services.SecretStorage();
         _ = Task.Run(async () =>
         {
             if (bool.TryParse(await storage.GetSecretAsync("close_to_tray"), out var ctt))
@@ -195,12 +195,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     partial void OnCloseToTrayChanged(bool value)
     {
-        _ = new Client.Desktop.Services.SecretStorage().SaveSecretAsync("close_to_tray", value.ToString());
+        _ = new Client.Core.Services.SecretStorage().SaveSecretAsync("close_to_tray", value.ToString());
     }
 
     partial void OnStartMinimizedChanged(bool value)
     {
-        _ = new Client.Desktop.Services.SecretStorage().SaveSecretAsync("start_minimized", value.ToString());
+        _ = new Client.Core.Services.SecretStorage().SaveSecretAsync("start_minimized", value.ToString());
     }
 
     public async Task LoginAndLoadTunnelsAsync()
@@ -252,7 +252,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task LoadTunnelsAsync(string serverToken)
     {
-        List<Client.Desktop.Models.TunnelModel> tunnelsData;
+        List<Client.Core.Models.TunnelModel> tunnelsData;
         try
         {
             tunnelsData = await _apiService.GetTunnelsAsync();

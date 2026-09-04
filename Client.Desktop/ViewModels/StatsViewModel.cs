@@ -1,7 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
-using Client.Desktop.Services;
+using Client.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LiveChartsCore;
