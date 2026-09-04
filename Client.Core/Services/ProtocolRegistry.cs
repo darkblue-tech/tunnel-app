@@ -8,7 +8,7 @@ public static class ProtocolRegistry
 {
     public static void Register()
     {
-        var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+        var exePath = Environment.ProcessPath;
         if (string.IsNullOrEmpty(exePath)) return;
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -43,7 +43,7 @@ MimeType=x-scheme-handler/darktunnel;
                 {
                     FileName = "xdg-mime",
                     Arguments = "default darktunnel.desktop x-scheme-handler/darktunnel",
-                    UseShellExecute = true,
+                    UseShellExecute = false,
                     CreateNoWindow = true
                 });
             }
