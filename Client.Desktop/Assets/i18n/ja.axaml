@@ -39,4 +39,8 @@
     <system:String x:Key="Str_Tray_DisconnectAll">すべて切断</system:String>
     <system:String x:Key="Str_Tray_NotLoggedIn">ログインしていません</system:String>
     <system:String x:Key="Str_Transport">トランスポート</system:String>
+    <system:String x:Key="Str_Update_Title">アップデートが利用可能です</system:String>
+    <system:String x:Key="Str_Update_Apply">更新</system:String>
+    <system:String x:Key="Str_Update_Downloading">ダウンロード中...</system:String>
+    <system:String x:Key="Str_Update_Dismiss">後で</system:String>
 </ResourceDictionary>

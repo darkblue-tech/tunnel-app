@@ -192,12 +192,22 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             var updateService = new UpdateService();
-            await updateService.ApplyUpdateAsync(_pendingUpdateInfo);
+            var success = await updateService.ApplyUpdateAsync(_pendingUpdateInfo);
+            if (success && !OperatingSystem.IsWindows())
+            {
+                HasUpdateResult = false;
+            }
         }
         finally
         {
             IsUpdating = false;
         }
+    }
+
+    [RelayCommand]
+    private void DismissUpdate()
+    {
+        HasUpdateResult = false;
     }
 
     [ObservableProperty]
