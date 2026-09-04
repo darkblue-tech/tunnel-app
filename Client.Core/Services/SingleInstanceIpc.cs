@@ -6,11 +6,19 @@ using System.Threading.Tasks;
 
 namespace Client.Core.Services;
 
+/// <summary>
+/// Provides Inter-Process Communication (IPC) to ensure only a single instance of the client runs.
+/// Routes arguments (like URIs) from subsequent instances to the primary instance.
+/// </summary>
 public static class SingleInstanceIpc
 {
     private const string PipeName = "darkblue.tech Tunnel IPC";
     private const string MutexName = "DarkTunnelClient_SingleInstance_Mutex";
 
+    /// <summary>
+    /// Checks if a primary instance is running and forwards arguments to it via a Named Pipe.
+    /// </summary>
+    /// <returns>True if a primary instance was found and args were forwarded, otherwise false.</returns>
     public static bool CheckAndForwardArgs(string[] args)
     {
         try
@@ -43,8 +51,14 @@ public static class SingleInstanceIpc
         }
     }
 
+    /// <summary>
+    /// Event triggered when a subsequent instance is started without arguments, requesting the UI to wake up.
+    /// </summary>
     public static event Action? WakeupRequested;
 
+    /// <summary>
+    /// Starts the IPC named pipe server on the primary instance to listen for forwarded arguments.
+    /// </summary>
     public static void StartServer()
     {
         Task.Run(async () =>

@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace Client.Core.Services;
 
+/// <summary>
+/// Tracks network bandwidth (Rx and Tx) and provides historical data for graphing.
+/// </summary>
 public static class BandwidthTracker
 {
     private static long _rxBytes;

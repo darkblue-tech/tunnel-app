@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace Client.Core.Services;
 
+/// <summary>
+/// Provides secure secret storage on Windows using the Data Protection API (DPAPI).
+/// </summary>
 public class WindowsSecretStorageProvider : ISecretStorageProvider
 {
     private readonly string _storageDir;

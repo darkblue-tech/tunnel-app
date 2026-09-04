@@ -4,10 +4,16 @@ using System.Reflection;
 
 namespace Client.Core.Services;
 
+/// <summary>
+/// Provides functionality to configure the application to launch automatically on system startup.
+/// </summary>
 public static class AutostartHelper
 {
     private const string AppName = "DarkTunnelClient";
 
+    /// <summary>
+    /// Enables or disables application autostart on Windows or Linux.
+    /// </summary>
     public static void SetAutostart(bool enable)
     {
         var execPath = Environment.ProcessPath;
@@ -39,6 +45,9 @@ public static class AutostartHelper
         }
     }
 
+    /// <summary>
+    /// Checks whether autostart is currently enabled for the application.
+    /// </summary>
     public static bool IsAutostartEnabled()
     {
         if (OperatingSystem.IsWindows())

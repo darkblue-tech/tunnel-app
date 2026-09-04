@@ -6,6 +6,10 @@ using System.Text.Json;
 
 namespace Client.Core.Services;
 
+/// <summary>
+/// The core engine responsible for orchestrating the tunnel connection, 
+/// managing protocols, and handling data streams.
+/// </summary>
 public class TunnelEngine
 {
     public event Action<string>? OnLog;

@@ -11,6 +11,10 @@ using SIPSorcery.Net;
 
 namespace Client.Core.Services;
 
+/// <summary>
+/// WebRTC DataChannel implementation of the control channel client.
+/// Used for peer-to-peer capabilities and NAT traversal when direct connections are needed.
+/// </summary>
 public class WebRtcControlChannelClient : IControlChannelClient
 {
     private RTCPeerConnection? _pc;

@@ -8,6 +8,10 @@ using System.Threading.Tasks;
 
 namespace Client.Core.Services;
 
+/// <summary>
+/// WebSocket implementation of the control channel client.
+/// Used as a fallback transport when QUIC and WebRTC are unavailable.
+/// </summary>
 public class WebSocketControlChannelClient : IControlChannelClient
 {
     private readonly ClientWebSocket _ws = new();
