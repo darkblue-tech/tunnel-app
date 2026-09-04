@@ -24,19 +24,43 @@ public class ApiService
         _httpClient = new HttpClient();
     }
 
-    public async Task<List<TunnelModel>> GetTunnelsAsync()
+    private async Task<HttpResponseMessage> SendWithAuthRetryAsync(Func<HttpRequestMessage> requestFactory)
     {
         var token = await _authService.GetTokenAsync();
-        if (string.IsNullOrEmpty(token)) return new List<TunnelModel>();
+        if (string.IsNullOrEmpty(token))
+        {
+            throw new UnauthorizedAccessException("No token available");
+        }
 
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var request1 = requestFactory();
+        request1.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
+        var response = await _httpClient.SendAsync(request1);
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            // Token expired on server; attempt refresh and retry
+            var newToken = await _authService.RefreshTokenAsync();
+            if (string.IsNullOrEmpty(newToken))
+            {
+                throw new UnauthorizedAccessException("Session expired");
+            }
+
+            var request2 = requestFactory();
+            request2.Headers.Authorization = new AuthenticationHeaderValue("Bearer", newToken);
+            return await _httpClient.SendAsync(request2);
+        }
+
+        return response;
+    }
+
+    public async Task<List<TunnelModel>> GetTunnelsAsync()
+    {
         try
         {
-            var response = await _httpClient.GetAsync($"{_baseUrl}/tunnels");
+            var response = await SendWithAuthRetryAsync(() => new HttpRequestMessage(HttpMethod.Get, $"{_baseUrl}/tunnels"));
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                throw new UnauthorizedAccessException("Token is dead");
+                throw new UnauthorizedAccessException("Session expired");
             }
             response.EnsureSuccessStatusCode();
             var tunnels = await response.Content.ReadFromJsonAsync<List<TunnelModel>>();
@@ -55,17 +79,12 @@ public class ApiService
 
     public async Task<EdgeNodeResponse?> GetPreferredEdgeNodeAsync()
     {
-        var token = await _authService.GetTokenAsync();
-        if (string.IsNullOrEmpty(token)) return null;
-
-        _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
         try
         {
-            var response = await _httpClient.GetAsync($"{_baseUrl}/v1/edge-nodes/preferred");
+            var response = await SendWithAuthRetryAsync(() => new HttpRequestMessage(HttpMethod.Get, $"{_baseUrl}/v1/edge-nodes/preferred"));
             response.EnsureSuccessStatusCode();
             
-            var result = await System.Net.Http.Json.HttpContentJsonExtensions.ReadFromJsonAsync<EdgeNodeResponse>(response.Content);
+            var result = await response.Content.ReadFromJsonAsync<EdgeNodeResponse>();
             return result;
         }
         catch (Exception ex)

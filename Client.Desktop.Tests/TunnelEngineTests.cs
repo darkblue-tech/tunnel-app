@@ -8,7 +8,7 @@ namespace Client.Desktop.Tests;
 public class TunnelEngineTests
 {
     [Fact]
-    public void StopTunnel_IntentionallyStopsWithoutReconnecting()
+    public async Task StopTunnel_IntentionallyStopsWithoutReconnecting()
     {
         var engine = new TunnelEngine();
         bool disconnectedCalled = false;
@@ -16,7 +16,7 @@ public class TunnelEngineTests
 
         _ = engine.StartTunnelAsync("ws://localhost:9999", "test", "127.0.0.1", 8080, 7000, "token");
         
-        Task.Delay(100).Wait();
+        await Task.Delay(100);
 
         engine.StopTunnel();
 
