@@ -40,4 +40,8 @@
     <system:String x:Key="Str_Tray_NotLoggedIn">Not logged in</system:String>
 
     <system:String x:Key="Str_Transport">Transport</system:String>
+    <system:String x:Key="Str_Update_Title">Update Available</system:String>
+    <system:String x:Key="Str_Update_Apply">Update</system:String>
+    <system:String x:Key="Str_Update_Downloading">Downloading...</system:String>
+    <system:String x:Key="Str_Update_Dismiss">Later</system:String>
 </ResourceDictionary>

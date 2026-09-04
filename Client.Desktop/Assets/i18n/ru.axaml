@@ -39,4 +39,8 @@
     <system:String x:Key="Str_Tray_DisconnectAll">Отключить все</system:String>
     <system:String x:Key="Str_Tray_NotLoggedIn">Не авторизован</system:String>
     <system:String x:Key="Str_Transport">Транспорт</system:String>
+    <system:String x:Key="Str_Update_Title">Доступно обновление</system:String>
+    <system:String x:Key="Str_Update_Apply">Обновить</system:String>
+    <system:String x:Key="Str_Update_Downloading">Загрузка...</system:String>
+    <system:String x:Key="Str_Update_Dismiss">Позже</system:String>
 </ResourceDictionary>

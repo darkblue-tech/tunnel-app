@@ -39,4 +39,8 @@
     <system:String x:Key="Str_Tray_DisconnectAll">全部断开</system:String>
     <system:String x:Key="Str_Tray_NotLoggedIn">未登录</system:String>
     <system:String x:Key="Str_Transport">传输</system:String>
+    <system:String x:Key="Str_Update_Title">有可用更新</system:String>
+    <system:String x:Key="Str_Update_Apply">立即更新</system:String>
+    <system:String x:Key="Str_Update_Downloading">下载中...</system:String>
+    <system:String x:Key="Str_Update_Dismiss">稍后</system:String>
 </ResourceDictionary>
