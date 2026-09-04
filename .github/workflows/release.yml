@@ -46,10 +46,6 @@ jobs:
             os: macos-latest
             archive_ext: tar.gz
             self_contained: 'true'
-          - target: freebsd-x64
-            os: ubuntu-latest
-            archive_ext: tar.gz
-            self_contained: 'true'
 
     steps:
       - name: Checkout
@@ -201,12 +197,11 @@ jobs:
         run: |
           choco install nsis -y
 
-      - name: Build NSIS Installers (Offline & Web)
+      - name: Build NSIS Installers (Offline)
         if: runner.os == 'Windows'
         shell: cmd
         run: |
           makensis /DAPP_VERSION=${{ steps.version.outputs.val }} /DARCH=${{ matrix.target }} /DSOURCE_DIR=..\out\${{ matrix.target }} installer\setup.nsi
-          makensis /DAPP_VERSION=${{ steps.version.outputs.val }} /DARCH=${{ matrix.target }} /DDOWNLOAD_URL=https://github.com/darkblue-tech/tunnel-app/releases/download/v${{ steps.version.outputs.val }}/DarkTunnel-Client-v${{ steps.version.outputs.val }}-${{ matrix.target }}.zip installer\web-setup.nsi
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
