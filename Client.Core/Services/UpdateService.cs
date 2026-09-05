@@ -130,35 +130,53 @@ public class UpdateService
         }
     }
 
-    public async Task<bool> ApplyUpdateAsync(UpdateCheckResult updateInfo)
+    public async Task<bool> ApplyUpdateAsync(
+        UpdateCheckResult updateInfo,
+        IProgress<UpdateProgress>? progress = null,
+        System.Threading.CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(updateInfo.WebSetupUrl) && string.IsNullOrEmpty(updateInfo.DownloadUrl))
         {
             return false;
         }
 
-        var rawUrl = !string.IsNullOrEmpty(updateInfo.WebSetupUrl) ? updateInfo.WebSetupUrl : updateInfo.DownloadUrl;
-        var downloadUri = ResolveAbsoluteUrl(rawUrl);
+        var primaryUrl = !string.IsNullOrEmpty(updateInfo.WebSetupUrl) ? updateInfo.WebSetupUrl : updateInfo.DownloadUrl;
+        var fallbackUrl = updateInfo.FallbackUrl;
+
+        var resolvedPrimary = ResolveAbsoluteUrl(primaryUrl);
+        var fileName = Path.GetFileName(resolvedPrimary.LocalPath);
+        if (string.IsNullOrEmpty(fileName) || !fileName.Contains('.'))
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) fileName = "DarkTunnel-Setup.exe";
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) fileName = "DarkTunnel.AppImage";
+            else fileName = "DarkTunnel.dmg";
+        }
+
+        var targetFile = Path.Combine(Path.GetTempPath(), fileName);
+
+        var downloaded = await DownloadUpdateWithProgressAsync(primaryUrl, fallbackUrl, targetFile, progress, cancellationToken);
+        if (!downloaded || !File.Exists(targetFile))
+        {
+            // If direct download failed, fallback to opening browser
+            OpenUrl(resolvedPrimary.ToString());
+            return false;
+        }
 
         try
         {
-            var targetFile = Path.Combine(Path.GetTempPath(), Path.GetFileName(downloadUri.LocalPath));
-
-            using (var downloadStream = await _httpClient.GetStreamAsync(downloadUri))
-            using (var fileStream = File.Create(targetFile))
-            {
-                await downloadStream.CopyToAsync(fileStream);
-            }
-
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 if (targetFile.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                 {
-                    Process.Start(new ProcessStartInfo
+                    var currentExe = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "DarkTunnel Client.exe");
+                    var psi = new ProcessStartInfo
                     {
-                        FileName = targetFile,
-                        UseShellExecute = true
-                    });
+                        FileName = "cmd.exe",
+                        Arguments = $"/c timeout /t 2 /nobreak >nul & \"{targetFile}\" /S & timeout /t 1 /nobreak >nul & start \"\" \"{currentExe}\"",
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    };
+                    Process.Start(psi);
                     Environment.Exit(0);
                     return true;
                 }
@@ -170,11 +188,20 @@ public class UpdateService
                     try
                     {
                         File.SetUnixFileMode(targetFile, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-                        Process.Start(new ProcessStartInfo
+                        var currentAppImage = Environment.GetEnvironmentVariable("APPIMAGE");
+                        if (!string.IsNullOrEmpty(currentAppImage) && File.Exists(currentAppImage))
                         {
-                            FileName = targetFile,
-                            UseShellExecute = false
-                        });
+                            try
+                            {
+                                File.Copy(targetFile, currentAppImage, overwrite: true);
+                                Process.Start(new ProcessStartInfo(currentAppImage) { UseShellExecute = true });
+                                Environment.Exit(0);
+                                return true;
+                            }
+                            catch { }
+                        }
+
+                        Process.Start(new ProcessStartInfo(targetFile) { UseShellExecute = true });
                         Environment.Exit(0);
                         return true;
                     }
@@ -190,7 +217,7 @@ public class UpdateService
                 }
             }
 
-            OpenUrl(downloadUri.ToString());
+            OpenUrl(resolvedPrimary.ToString());
             return true;
         }
         catch (Exception ex)
@@ -198,8 +225,7 @@ public class UpdateService
             Console.WriteLine($"Failed to apply update directly: {ex.Message}");
             try
             {
-                // Fallback: open browser download page
-                OpenUrl(downloadUri.ToString());
+                OpenUrl(resolvedPrimary.ToString());
                 return true;
             }
             catch
@@ -207,6 +233,63 @@ public class UpdateService
                 return false;
             }
         }
+    }
+
+    public async Task<bool> DownloadUpdateWithProgressAsync(
+        string primaryUrl,
+        string? fallbackUrl,
+        string targetFilePath,
+        IProgress<UpdateProgress>? progress = null,
+        System.Threading.CancellationToken cancellationToken = default)
+    {
+        var urlsToTry = new System.Collections.Generic.List<string>();
+        if (!string.IsNullOrEmpty(primaryUrl)) urlsToTry.Add(primaryUrl);
+        if (!string.IsNullOrEmpty(fallbackUrl) && !string.Equals(primaryUrl, fallbackUrl, StringComparison.OrdinalIgnoreCase))
+            urlsToTry.Add(fallbackUrl);
+
+        foreach (var url in urlsToTry)
+        {
+            var resolvedUri = ResolveAbsoluteUrl(url);
+            try
+            {
+                using var response = await _httpClient.GetAsync(resolvedUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                if (!response.IsSuccessStatusCode) continue;
+
+                var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+                using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                using var fileStream = new FileStream(targetFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
+
+                var buffer = new byte[81920];
+                long totalRead = 0;
+                int bytesRead;
+
+                while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
+                {
+                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+                    totalRead += bytesRead;
+
+                    if (totalBytes > 0)
+                    {
+                        var pct = Math.Clamp((double)totalRead / totalBytes * 100.0, 0.0, 100.0);
+                        progress?.Report(new UpdateProgress(totalRead, totalBytes, pct));
+                    }
+                    else
+                    {
+                        progress?.Report(new UpdateProgress(totalRead, -1, 0.0));
+                    }
+                }
+
+                progress?.Report(new UpdateProgress(totalRead, totalBytes > 0 ? totalBytes : totalRead, 100.0));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UpdateService] Error downloading from {resolvedUri}: {ex.Message}");
+                try { if (File.Exists(targetFilePath)) File.Delete(targetFilePath); } catch { }
+            }
+        }
+
+        return false;
     }
 
     public static void OpenUrl(string url)
@@ -236,16 +319,22 @@ public class UpdateService
         }
     }
 
-    private Uri ResolveAbsoluteUrl(string url)
+    public Uri ResolveAbsoluteUrl(string url)
     {
-        if (Uri.TryCreate(url, UriKind.Absolute, out var absUri))
+        if (Uri.TryCreate(url, UriKind.Absolute, out var absUri) &&
+            (absUri.Scheme == Uri.UriSchemeHttp || absUri.Scheme == Uri.UriSchemeHttps))
         {
             return absUri;
         }
 
         var baseUri = new Uri(_baseUrl.EndsWith("/") ? _baseUrl : _baseUrl + "/");
-        var relative = url.StartsWith("/") ? url.Substring(1) : url;
-        return new Uri(baseUri, relative);
+        if (url.StartsWith("/"))
+        {
+            var origin = new Uri(baseUri.GetLeftPart(UriPartial.Authority));
+            return new Uri(origin, url);
+        }
+
+        return new Uri(baseUri, url);
     }
 
     public static string GetCurrentPlatformRID()
@@ -257,6 +346,8 @@ public class UpdateService
         return $"win-{arch}";
     }
 }
+
+public readonly record struct UpdateProgress(long DownloadedBytes, long TotalBytes, double Percentage);
 
 /// <summary>
 /// Represents the result of an update check.
@@ -271,6 +362,9 @@ public class UpdateCheckResult
 
     [JsonPropertyName("downloadUrl")]
     public string DownloadUrl { get; set; } = string.Empty;
+
+    [JsonPropertyName("fallbackUrl")]
+    public string? FallbackUrl { get; set; }
 
     [JsonPropertyName("webSetupUrl")]
     public string? WebSetupUrl { get; set; }

@@ -36,4 +36,33 @@ public class UpdateServiceTests
         var result = UpdateService.IsVersionNewer(latest, current);
         Assert.Equal(expected, result);
     }
+
+    [Fact]
+    public void ResolveAbsoluteUrl_AbsoluteUrl_ReturnsSameUri()
+    {
+        var service = new UpdateService();
+        var abs = "https://github.com/darkblue-tech/tunnel-app/releases/download/v1.0.3/file.exe";
+        var resolved = service.ResolveAbsoluteUrl(abs);
+        Assert.Equal(abs, resolved.ToString());
+    }
+
+    [Fact]
+    public void ResolveAbsoluteUrl_RootRelativeUrl_DoesNotDuplicateApiSegment()
+    {
+        var service = new UpdateService();
+        var relative = "/api/version/file/file.exe";
+        var resolved = service.ResolveAbsoluteUrl(relative);
+        Assert.DoesNotContain("/api/api/", resolved.ToString());
+        Assert.Equal("https://tunnel.darkblue.tech/api/version/file/file.exe", resolved.ToString());
+    }
+
+    [Fact]
+    public void ResolveAbsoluteUrl_PathRelativeUrl_ResolvesCorrectly()
+    {
+        var service = new UpdateService();
+        var relative = "version/file/file.exe";
+        var resolved = service.ResolveAbsoluteUrl(relative);
+        Assert.DoesNotContain("/api/api/", resolved.ToString());
+        Assert.Equal("https://tunnel.darkblue.tech/api/version/file/file.exe", resolved.ToString());
+    }
 }

@@ -184,6 +184,12 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isUpdating;
 
+    [ObservableProperty]
+    private double _updateProgressPercentage;
+
+    [ObservableProperty]
+    private string _updateProgressText = string.Empty;
+
     private UpdateCheckResult? _pendingUpdateInfo;
 
     private async Task CheckForUpdatesBackgroundAsync()
@@ -211,10 +217,37 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (_pendingUpdateInfo == null) return;
         IsUpdating = true;
+        UpdateProgressPercentage = 0;
+        UpdateProgressText = "Connecting...";
+
+        var progress = new Progress<UpdateProgress>(p =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                UpdateProgressPercentage = p.Percentage;
+                if (p.TotalBytes > 0)
+                {
+                    var downloadedMb = p.DownloadedBytes / (1024.0 * 1024.0);
+                    var totalMb = p.TotalBytes / (1024.0 * 1024.0);
+                    UpdateProgressText = $"Downloading {p.Percentage:0}% ({downloadedMb:0.0} / {totalMb:0.0} MB)";
+                }
+                else
+                {
+                    var downloadedMb = p.DownloadedBytes / (1024.0 * 1024.0);
+                    UpdateProgressText = $"Downloading ({downloadedMb:0.0} MB)...";
+                }
+
+                if (p.Percentage >= 100.0)
+                {
+                    UpdateProgressText = "Installing & restarting...";
+                }
+            });
+        });
+
         try
         {
             var updateService = new UpdateService();
-            var success = await updateService.ApplyUpdateAsync(_pendingUpdateInfo);
+            var success = await updateService.ApplyUpdateAsync(_pendingUpdateInfo, progress);
             if (success && !OperatingSystem.IsWindows())
             {
                 HasUpdateResult = false;
