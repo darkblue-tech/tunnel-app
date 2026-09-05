@@ -4,16 +4,52 @@ using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
+/// <summary>
+/// Service responsible for checking and applying application updates.
+/// </summary>
 public class UpdateService
 {
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
-    public static string CurrentVersion => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.1";
+
+    /// <summary>
+    /// Gets the current running application version.
+    /// </summary>
+    public static string CurrentVersion
+    {
+        get
+        {
+            try
+            {
+                var entryVer = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version;
+                if (entryVer != null && entryVer != new Version(0, 0, 0, 0))
+                {
+                    return entryVer.ToString(3);
+                }
+
+                if (File.Exists("appsettings.json"))
+                {
+                    var json = File.ReadAllText("appsettings.json");
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("AppInfo", out var appInfo) &&
+                        appInfo.TryGetProperty("FullVersionDisplay", out var verProp))
+                    {
+                        var vStr = verProp.GetString()?.Trim().TrimStart('v', '.').TrimEnd('r');
+                        if (!string.IsNullOrEmpty(vStr)) return vStr;
+                    }
+                }
+            }
+            catch { }
+
+            return System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.2";
+        }
+    }
 
     public UpdateService()
     {
@@ -26,7 +62,8 @@ public class UpdateService
         try
         {
             var rid = GetCurrentPlatformRID();
-            var response = await _httpClient.GetAsync($"{_baseUrl}/version/check?current={CurrentVersion}&platform={rid}");
+            var checkUri = ResolveAbsoluteUrl($"version/check?current={CurrentVersion}&platform={rid}");
+            var response = await _httpClient.GetAsync(checkUri);
             if (!response.IsSuccessStatusCode) return null;
 
             var result = await response.Content.ReadFromJsonAsync<UpdateCheckResult>();
@@ -41,24 +78,18 @@ public class UpdateService
 
     public async Task<bool> ApplyUpdateAsync(UpdateCheckResult updateInfo)
     {
-        if (string.IsNullOrEmpty(updateInfo.DownloadUrl))
+        if (string.IsNullOrEmpty(updateInfo.WebSetupUrl) && string.IsNullOrEmpty(updateInfo.DownloadUrl))
         {
             return false;
         }
 
         try
         {
-            var downloadUrl = updateInfo.DownloadUrl;
-            if (!downloadUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-            {
-                var baseUri = new Uri(_baseUrl);
-                downloadUrl = new Uri(baseUri, downloadUrl).ToString();
-            }
+            var rawUrl = !string.IsNullOrEmpty(updateInfo.WebSetupUrl) ? updateInfo.WebSetupUrl : updateInfo.DownloadUrl;
+            var downloadUri = ResolveAbsoluteUrl(rawUrl);
+            var targetFile = Path.Combine(Path.GetTempPath(), Path.GetFileName(downloadUri.LocalPath));
 
-            var fileName = Path.GetFileName(new Uri(downloadUrl).AbsolutePath);
-            var targetFile = Path.Combine(Path.GetTempPath(), fileName);
-
-            using (var downloadStream = await _httpClient.GetStreamAsync(downloadUrl))
+            using (var downloadStream = await _httpClient.GetStreamAsync(downloadUri))
             using (var fileStream = File.Create(targetFile))
             {
                 await downloadStream.CopyToAsync(fileStream);
@@ -72,7 +103,7 @@ public class UpdateService
                     var startInfo = new ProcessStartInfo
                     {
                         FileName = targetFile,
-                        Arguments = "/S", // Silent install flag for NSIS / Inno Setup
+                        Arguments = "/S", // Silent install flag for NSIS
                         UseShellExecute = true
                     };
                     Process.Start(startInfo);
@@ -84,7 +115,7 @@ public class UpdateService
             // Open download link for non-Windows platforms
             Process.Start(new ProcessStartInfo
             {
-                FileName = downloadUrl,
+                FileName = downloadUri.ToString(),
                 UseShellExecute = true
             });
             return true;
@@ -96,17 +127,31 @@ public class UpdateService
         }
     }
 
+    private Uri ResolveAbsoluteUrl(string url)
+    {
+        if (Uri.TryCreate(url, UriKind.Absolute, out var absUri))
+        {
+            return absUri;
+        }
+
+        var baseUri = new Uri(_baseUrl.EndsWith("/") ? _baseUrl : _baseUrl + "/");
+        var relative = url.StartsWith("/") ? url.Substring(1) : url;
+        return new Uri(baseUri, relative);
+    }
+
     public static string GetCurrentPlatformRID()
     {
         var arch = RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant();
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return $"win-{arch}";
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) return $"linux-{arch}";
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) return $"osx-{arch}";
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Create("FREEBSD"))) return $"freebsd-{arch}";
         return $"win-{arch}";
     }
 }
 
+/// <summary>
+/// Represents the result of an update check.
+/// </summary>
 public class UpdateCheckResult
 {
     [JsonPropertyName("hasUpdate")]
