@@ -15,7 +15,7 @@ namespace Client.Core.Services;
 /// </summary>
 public class AuthService
 {
-    public static TaskCompletionSource<string> AuthCodeCompletionSource = new();
+    public static TaskCompletionSource<string> AuthCodeCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private readonly SecretStorage _secretStorage;
     private static readonly HttpClient _httpClient = new();
@@ -115,11 +115,13 @@ public class AuthService
         var codeVerifier = GenerateCodeVerifier();
         var codeChallenge = GenerateCodeChallenge(codeVerifier);
 
+        await _secretStorage.SaveSecretAsync("pending_code_verifier", codeVerifier);
+
         if (AuthCodeCompletionSource != null && !AuthCodeCompletionSource.Task.IsCompleted)
         {
             AuthCodeCompletionSource.TrySetCanceled();
         }
-        AuthCodeCompletionSource = new TaskCompletionSource<string>();
+        AuthCodeCompletionSource = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var authUrl = $"https://tunnel.darkblue.tech/api/v1/auth/app/login?challenge={codeChallenge}";
         OpenBrowser(authUrl);
@@ -150,8 +152,42 @@ public class AuthService
         {
             // Handle other exceptions
         }
+        finally
+        {
+            await _secretStorage.ClearSecretAsync("pending_code_verifier");
+        }
 
         return string.Empty;
+    }
+
+    /// <summary>
+    /// Completes authentication when a deep link is received during a cold start or after process recovery.
+    /// Uses the securely stored code verifier if available.
+    /// </summary>
+    public async Task<string?> CompletePendingLoginAsync(string code)
+    {
+        try
+        {
+            var codeVerifier = await _secretStorage.GetSecretAsync("pending_code_verifier");
+            if (string.IsNullOrEmpty(codeVerifier)) return null;
+
+            var idToken = await ExchangeCodeForTokenAsync(code, codeVerifier);
+            if (string.IsNullOrEmpty(idToken)) return null;
+
+            var serverToken = await ExchangeForServerJwtAsync(idToken);
+            if (!string.IsNullOrEmpty(serverToken))
+            {
+                await _secretStorage.SaveSecretAsync("access_token", serverToken);
+                await ExtractAndSaveProfileAsync(idToken);
+                await _secretStorage.ClearSecretAsync("pending_code_verifier");
+                return serverToken;
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[AuthService] CompletePendingLoginAsync error: {ex.Message}");
+        }
+        return null;
     }
 
     public async Task<string?> RefreshTokenAsync(CancellationToken cancellationToken = default)

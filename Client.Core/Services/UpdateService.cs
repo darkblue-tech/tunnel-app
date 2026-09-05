@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -27,27 +28,42 @@ public class UpdateService
         {
             try
             {
+                // 1. Check InformationalVersion from entry assembly
+                var infoVer = System.Reflection.Assembly.GetEntryAssembly()?
+                    .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?
+                    .InformationalVersion;
+                if (!string.IsNullOrEmpty(infoVer))
+                {
+                    var plusIndex = infoVer.IndexOf('+');
+                    var cleanVer = (plusIndex >= 0 ? infoVer[..plusIndex] : infoVer).Trim().TrimStart('v', '.');
+                    if (!string.IsNullOrEmpty(cleanVer)) return cleanVer;
+                }
+
+                // 2. Check appsettings.json
+                var configPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+                if (!File.Exists(configPath) && File.Exists("appsettings.json")) configPath = "appsettings.json";
+                if (File.Exists(configPath))
+                {
+                    var json = File.ReadAllText(configPath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("AppInfo", out var appInfo) &&
+                        appInfo.TryGetProperty("FullVersionDisplay", out var verProp))
+                    {
+                        var vStr = verProp.GetString()?.Trim().TrimStart('v', '.');
+                        if (!string.IsNullOrEmpty(vStr)) return vStr;
+                    }
+                }
+
+                // 3. Fallback to entry assembly version
                 var entryVer = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version;
                 if (entryVer != null && entryVer != new Version(0, 0, 0, 0))
                 {
                     return entryVer.ToString(3);
                 }
-
-                if (File.Exists("appsettings.json"))
-                {
-                    var json = File.ReadAllText("appsettings.json");
-                    using var doc = JsonDocument.Parse(json);
-                    if (doc.RootElement.TryGetProperty("AppInfo", out var appInfo) &&
-                        appInfo.TryGetProperty("FullVersionDisplay", out var verProp))
-                    {
-                        var vStr = verProp.GetString()?.Trim().TrimStart('v', '.').TrimEnd('r');
-                        if (!string.IsNullOrEmpty(vStr)) return vStr;
-                    }
-                }
             }
             catch { }
 
-            return System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.2";
+            return "1.0.2r";
         }
     }
 
@@ -55,6 +71,35 @@ public class UpdateService
     {
         _baseUrl = Environment.GetEnvironmentVariable("TUNNEL_API_URL") ?? "https://tunnel.darkblue.tech/api";
         _httpClient = new HttpClient();
+    }
+
+    /// <summary>
+    /// Checks whether the latest version string is strictly newer than current version string.
+    /// Normalizes release suffixes like 'r' so identical versions (e.g. 1.0.2 and 1.0.2r) don't trigger updates.
+    /// </summary>
+    public static bool IsVersionNewer(string latest, string current)
+    {
+        if (string.IsNullOrWhiteSpace(latest) || string.IsNullOrWhiteSpace(current))
+            return false;
+
+        var l = latest.Trim().TrimStart('v', '.');
+        var c = current.Trim().TrimStart('v', '.');
+
+        if (string.Equals(l, c, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var cleanL = l.TrimEnd('r', 'R');
+        var cleanC = c.TrimEnd('r', 'R');
+
+        if (string.Equals(cleanL, cleanC, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (Version.TryParse(cleanL, out var vl) && Version.TryParse(cleanC, out var vc))
+        {
+            return vl > vc;
+        }
+
+        return string.Compare(l, c, StringComparison.OrdinalIgnoreCase) > 0;
     }
 
     public async Task<UpdateCheckResult?> CheckForUpdatesAsync()
@@ -67,6 +112,15 @@ public class UpdateService
             if (!response.IsSuccessStatusCode) return null;
 
             var result = await response.Content.ReadFromJsonAsync<UpdateCheckResult>();
+            if (result != null && result.HasUpdate)
+            {
+                // Verify client-side that the reported latest version is actually newer
+                if (!IsVersionNewer(result.LatestVersion, CurrentVersion))
+                {
+                    result.HasUpdate = false;
+                }
+            }
+
             return result;
         }
         catch (Exception ex)
@@ -83,10 +137,11 @@ public class UpdateService
             return false;
         }
 
+        var rawUrl = !string.IsNullOrEmpty(updateInfo.WebSetupUrl) ? updateInfo.WebSetupUrl : updateInfo.DownloadUrl;
+        var downloadUri = ResolveAbsoluteUrl(rawUrl);
+
         try
         {
-            var rawUrl = !string.IsNullOrEmpty(updateInfo.WebSetupUrl) ? updateInfo.WebSetupUrl : updateInfo.DownloadUrl;
-            var downloadUri = ResolveAbsoluteUrl(rawUrl);
             var targetFile = Path.Combine(Path.GetTempPath(), Path.GetFileName(downloadUri.LocalPath));
 
             using (var downloadStream = await _httpClient.GetStreamAsync(downloadUri))
@@ -97,33 +152,87 @@ public class UpdateService
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                // Execute silent install if web installer / setup .exe
                 if (targetFile.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                 {
-                    var startInfo = new ProcessStartInfo
+                    Process.Start(new ProcessStartInfo
                     {
                         FileName = targetFile,
-                        Arguments = "/S", // Silent install flag for NSIS
                         UseShellExecute = true
-                    };
-                    Process.Start(startInfo);
+                    });
                     Environment.Exit(0);
                     return true;
                 }
             }
-
-            // Open download link for non-Windows platforms
-            Process.Start(new ProcessStartInfo
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                FileName = downloadUri.ToString(),
-                UseShellExecute = true
-            });
+                if (targetFile.EndsWith(".AppImage", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        File.SetUnixFileMode(targetFile, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = targetFile,
+                            UseShellExecute = false
+                        });
+                        Environment.Exit(0);
+                        return true;
+                    }
+                    catch { }
+                }
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                if (targetFile.EndsWith(".dmg", StringComparison.OrdinalIgnoreCase))
+                {
+                    Process.Start(new ProcessStartInfo("open", targetFile));
+                    return true;
+                }
+            }
+
+            OpenUrl(downloadUri.ToString());
             return true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to apply update: {ex.Message}");
-            return false;
+            Console.WriteLine($"Failed to apply update directly: {ex.Message}");
+            try
+            {
+                // Fallback: open browser download page
+                OpenUrl(downloadUri.ToString());
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
+    public static void OpenUrl(string url)
+    {
+        try
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Process.Start(new ProcessStartInfo("cmd", $"/c start {url.Replace("&", "^&")}") { CreateNoWindow = true });
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                Process.Start(new ProcessStartInfo("xdg-open", url));
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                Process.Start(new ProcessStartInfo("open", url));
+            }
+            else
+            {
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            }
+        }
+        catch
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
         }
     }
 

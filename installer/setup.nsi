@@ -38,7 +38,8 @@ RequestExecutionLevel admin
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
-!define MUI_FINISHPAGE_RUN "$INSTDIR\${PRODUCT_EXE}"
+!define MUI_FINISHPAGE_RUN
+!define MUI_FINISHPAGE_RUN_FUNCTION "LaunchApp"
 !insertmacro MUI_PAGE_FINISH
 
 ; Uninstaller Pages
@@ -76,7 +77,18 @@ Section -Post
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${APP_VERSION}"
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "${PRODUCT_WEB_SITE}"
+
+  ; Register darktunnel:// custom protocol scheme system-wide
+  WriteRegStr HKCR "darktunnel" "" "URL:DarkTunnel Protocol"
+  WriteRegStr HKCR "darktunnel" "URL Protocol" ""
+  WriteRegStr HKCR "darktunnel\DefaultIcon" "" "$INSTDIR\${PRODUCT_EXE},0"
+  WriteRegStr HKCR "darktunnel\shell" "" "open"
+  WriteRegStr HKCR "darktunnel\shell\open\command" "" '"$INSTDIR\${PRODUCT_EXE}" "%1"'
 SectionEnd
+
+Function LaunchApp
+  Exec '"$WINDIR\explorer.exe" "$INSTDIR\${PRODUCT_EXE}"'
+FunctionEnd
 
 Function un.onUninstSuccess
   HideWindow
@@ -92,6 +104,9 @@ Section Uninstall
   Delete "$DESKTOP\DarkTunnel Client.lnk"
   Delete "$SMPROGRAMS\DarkTunnel Client\DarkTunnel Client.lnk"
   RMDir "$SMPROGRAMS\DarkTunnel Client"
+
+  ; Unregister darktunnel:// custom protocol
+  DeleteRegKey HKCR "darktunnel"
 
   RMDir /r "$INSTDIR"
 
