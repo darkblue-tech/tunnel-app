@@ -8,8 +8,11 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
+/// <summary>
+/// Service responsible for managing user authentication, token acquisition, and OAuth2 flow.
+/// </summary>
 public class AuthService
 {
     public static TaskCompletionSource<string> AuthCodeCompletionSource = new();
@@ -18,15 +21,80 @@ public class AuthService
     private static readonly HttpClient _httpClient = new();
     private readonly string _clientId;
 
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
+
     public AuthService()
     {
         _secretStorage = new SecretStorage();
         _clientId = "j_OEiI1_qO8DGgb1k6E5zVX8FC9PUvvQLvYZwRlPhTI";
     }
 
-    public async Task<string> GetTokenAsync()
+    /// <summary>
+    /// Checks if a given JWT access token is expired or expiring within the specified skew window.
+    /// </summary>
+    public static bool IsTokenExpired(string token, int skewSeconds = 60)
     {
-        return await _secretStorage.GetSecretAsync("access_token") ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(token)) return true;
+
+        try
+        {
+            var parts = token.Split('.');
+            if (parts.Length < 2) return false;
+
+            var payloadStr = parts[1].Replace('-', '+').Replace('_', '/');
+            switch (payloadStr.Length % 4)
+            {
+                case 2: payloadStr += "=="; break;
+                case 3: payloadStr += "="; break;
+            }
+
+            var payloadBytes = Convert.FromBase64String(payloadStr);
+            using var doc = JsonDocument.Parse(payloadBytes);
+            if (doc.RootElement.TryGetProperty("exp", out var expEl) && expEl.TryGetInt64(out var exp))
+            {
+                var expTime = DateTimeOffset.FromUnixTimeSeconds(exp);
+                return DateTimeOffset.UtcNow.AddSeconds(skewSeconds) >= expTime;
+            }
+        }
+        catch
+        {
+            // If token parsing fails, do not assume expired statically; let the API validate it
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Returns true if a refresh token is present in secure storage, indicating an existing session.
+    /// </summary>
+    public async Task<bool> HasSavedSessionAsync()
+    {
+        var refreshToken = await _secretStorage.GetSecretAsync("refresh_token");
+        return !string.IsNullOrEmpty(refreshToken);
+    }
+
+    /// <summary>
+    /// Retrieves a valid access token. If the stored access token is missing or expired,
+    /// it automatically attempts to refresh it using the stored refresh token.
+    /// </summary>
+    public async Task<string> GetTokenAsync(bool forceRefresh = false)
+    {
+        var token = await _secretStorage.GetSecretAsync("access_token") ?? string.Empty;
+
+        if (forceRefresh || string.IsNullOrEmpty(token) || IsTokenExpired(token))
+        {
+            var refreshToken = await _secretStorage.GetSecretAsync("refresh_token");
+            if (!string.IsNullOrEmpty(refreshToken))
+            {
+                var refreshedToken = await RefreshTokenAsync();
+                if (!string.IsNullOrEmpty(refreshedToken))
+                {
+                    return refreshedToken;
+                }
+            }
+        }
+
+        return token;
     }
 
     public async Task LogoutAsync()
@@ -36,7 +104,7 @@ public class AuthService
         await _secretStorage.ClearSecretAsync("profile_name");
     }
 
-    public async Task<string> LoginAsync()
+    public async Task<string?> LoginAsync()
     {
         var existingToken = await GetTokenAsync();
         if (!string.IsNullOrEmpty(existingToken))
@@ -86,13 +154,24 @@ public class AuthService
         return string.Empty;
     }
 
-    public async Task<string?> RefreshTokenAsync()
+    public async Task<string?> RefreshTokenAsync(CancellationToken cancellationToken = default)
     {
-        var refreshToken = await _secretStorage.GetSecretAsync("refresh_token");
-        if (string.IsNullOrEmpty(refreshToken)) return null;
-
+        await _refreshLock.WaitAsync(cancellationToken);
         try
         {
+            // Check if another concurrent call already refreshed the token
+            var existingToken = await _secretStorage.GetSecretAsync("access_token");
+            if (!string.IsNullOrEmpty(existingToken) && !IsTokenExpired(existingToken))
+            {
+                return existingToken;
+            }
+
+            var refreshToken = await _secretStorage.GetSecretAsync("refresh_token");
+            if (string.IsNullOrEmpty(refreshToken)) return null;
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(15));
+
             var request = new HttpRequestMessage(HttpMethod.Post, "https://tunnel.darkblue.tech/api/v1/auth/app/token");
             request.Content = new FormUrlEncodedContent(new[]
             {
@@ -101,35 +180,55 @@ public class AuthService
                 new System.Collections.Generic.KeyValuePair<string, string>("refresh_token", refreshToken)
             });
 
-            var response = await _httpClient.SendAsync(request);
+            var response = await _httpClient.SendAsync(request, cts.Token);
             if (response.IsSuccessStatusCode)
             {
-                var json = await response.Content.ReadAsStringAsync();
+                var json = await response.Content.ReadAsStringAsync(cts.Token);
                 var doc = JsonDocument.Parse(json);
                 
                 if (doc.RootElement.TryGetProperty("refresh_token", out var refreshElement))
                 {
-                    await _secretStorage.SaveSecretAsync("refresh_token", refreshElement.GetString() ?? "");
+                    var newRefreshToken = refreshElement.GetString();
+                    if (!string.IsNullOrEmpty(newRefreshToken))
+                    {
+                        await _secretStorage.SaveSecretAsync("refresh_token", newRefreshToken);
+                    }
                 }
 
                 if (doc.RootElement.TryGetProperty("id_token", out var tokenElement))
                 {
                     var idToken = tokenElement.GetString() ?? "";
                     var serverToken = await ExchangeForServerJwtAsync(idToken);
-                    await _secretStorage.SaveSecretAsync("access_token", serverToken);
-                    await ExtractAndSaveProfileAsync(idToken);
-                    return serverToken;
+                    if (!string.IsNullOrEmpty(serverToken))
+                    {
+                        await _secretStorage.SaveSecretAsync("access_token", serverToken);
+                        await ExtractAndSaveProfileAsync(idToken);
+                        return serverToken;
+                    }
                 }
+            }
+            else if (response.StatusCode == HttpStatusCode.BadRequest || response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                // Refresh token is revoked or permanently invalid -> clear credentials
+                await LogoutAsync();
             }
             else
             {
-                // If refresh fails (e.g. revoked or expired refresh_token), clear it
-                await LogoutAsync();
+                // 5xx server error or other temporary failure - do not logout
+                Debug.WriteLine($"Token refresh endpoint returned {response.StatusCode}");
             }
+        }
+        catch (OperationCanceledException)
+        {
+            Debug.WriteLine("Token refresh timed out or was cancelled");
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"Exception during token refresh: {ex}");
+        }
+        finally
+        {
+            _refreshLock.Release();
         }
 
         return null;
@@ -173,6 +272,7 @@ public class AuthService
     {
         try
         {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             // We use the proxy endpoint on our backend to securely inject the client_secret
             var request = new HttpRequestMessage(HttpMethod.Post, "https://tunnel.darkblue.tech/api/v1/auth/app/token");
             request.Content = new FormUrlEncodedContent(new[]
@@ -184,11 +284,11 @@ public class AuthService
                 new System.Collections.Generic.KeyValuePair<string, string>("code_verifier", codeVerifier)
             });
 
-            var response = await _httpClient.SendAsync(request);
+            var response = await _httpClient.SendAsync(request, cts.Token);
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
-                Debug.WriteLine("Raw response: " + json); // Dump the HTML!
+                Debug.WriteLine($"[AuthService] Token response received, length: {json.Length}");
                 try 
                 {
                     var doc = JsonDocument.Parse(json);
@@ -226,10 +326,11 @@ public class AuthService
     {
         try
         {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             var request = new HttpRequestMessage(HttpMethod.Post, "https://tunnel.darkblue.tech/api/v1/auth/exchange");
             request.Content = new StringContent(JsonSerializer.Serialize(new { idToken = idToken }), Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.SendAsync(request);
+            var response = await _httpClient.SendAsync(request, cts.Token);
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();

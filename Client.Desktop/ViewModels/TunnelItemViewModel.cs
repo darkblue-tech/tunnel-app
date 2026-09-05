@@ -1,6 +1,6 @@
 using Avalonia.Threading;
-using Client.Desktop.Models;
-using Client.Desktop.Services;
+using Client.Core.Models;
+using Client.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
@@ -165,10 +165,18 @@ public partial class TunnelItemViewModel : ViewModelBase
 
     private (string, int) ParseLocalTarget(string localTarget)
     {
+        if (string.IsNullOrWhiteSpace(localTarget)) return ("127.0.0.1", 80);
+        
         var parts = localTarget.Split(':');
-        var host = parts.Length > 0 ? parts[0] : "127.0.0.1";
-        var port = parts.Length > 1 && int.TryParse(parts[1], out var p) ? p : 80;
-        return (host, port);
+        if (parts.Length == 1)
+        {
+            if (int.TryParse(parts[0], out var port)) return ("127.0.0.1", port);
+            return (parts[0], 80);
+        }
+
+        var host = parts[0];
+        var p = int.TryParse(parts[1], out var parsedPort) ? parsedPort : 80;
+        return (host, p);
     }
 
     private void OnEngineConnected(string publicUrl)

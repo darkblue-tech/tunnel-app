@@ -10,8 +10,12 @@ using System.Threading.Tasks;
 
 #pragma warning disable CA1416
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
+/// <summary>
+/// QUIC implementation of the control channel client.
+/// Provides a fast, multiplexed, and secure connection.
+/// </summary>
 public class QuicControlChannelClient : IControlChannelClient
 {
     private QuicConnection? _connection;
@@ -41,8 +45,8 @@ public class QuicControlChannelClient : IControlChannelClient
                 { 
                     new SslApplicationProtocol("tunnel-quic") 
                 },
-                // Allow self-signed for dev
-                RemoteCertificateValidationCallback = (sender, cert, chain, errors) => true
+                // Validate the remote certificate
+                RemoteCertificateValidationCallback = (sender, cert, chain, errors) => errors == SslPolicyErrors.None
             },
             DefaultStreamErrorCode = 0,
             DefaultCloseErrorCode = 0,
@@ -70,10 +74,34 @@ public class QuicControlChannelClient : IControlChannelClient
         return SendJsonAsync(new { type = "register_tunnel", subdomain, localHost, localPort, publicPort });
     }
 
-    public Task SendStreamDataAsync(string streamId, byte[] payload)
+    public async Task SendStreamDataAsync(string streamId, ReadOnlyMemory<byte> payload)
     {
-        var b64 = Convert.ToBase64String(payload);
-        return SendJsonAsync(new { type = "stream_data", streamId, payload_b64 = b64 });
+        if (_controlStream == null) return;
+
+        var bufferWriter = new System.Buffers.ArrayBufferWriter<byte>(256 + payload.Length * 2);
+        using (var jsonWriter = new Utf8JsonWriter(bufferWriter))
+        {
+            jsonWriter.WriteStartObject();
+            jsonWriter.WriteString("type", "stream_data");
+            jsonWriter.WriteString("streamId", streamId);
+            jsonWriter.WriteBase64String("payload_b64", payload.Span);
+            jsonWriter.WriteEndObject();
+        }
+
+        var span = bufferWriter.GetSpan(1);
+        span[0] = (byte)'\n';
+        bufferWriter.Advance(1);
+
+        await _sendLock.WaitAsync();
+        try
+        {
+            await _controlStream.WriteAsync(bufferWriter.WrittenMemory, CancellationToken.None);
+            await _controlStream.FlushAsync();
+        }
+        finally
+        {
+            _sendLock.Release();
+        }
     }
 
     public Task SendStreamCloseAsync(string streamId)

@@ -6,8 +6,11 @@ using System.Threading.Tasks;
 
 #pragma warning disable CA1416
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
+/// <summary>
+/// Provides secure secret storage on Windows using the Data Protection API (DPAPI).
+/// </summary>
 public class WindowsSecretStorageProvider : ISecretStorageProvider
 {
     private readonly string _storageDir;

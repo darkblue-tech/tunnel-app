@@ -6,6 +6,8 @@ using Client.Desktop.ViewModels;
 using Client.Desktop.Views;
 using System;
 
+using Client.Core.Services;
+using Client.Core.Models;
 namespace Client.Desktop;
 
 public partial class App : Application
@@ -14,7 +16,9 @@ public partial class App : Application
     private MainWindow? _mainWindow;
     private TrayIcon? _trayIcon;
 
-    public override void OnFrameworkInitializationCompleted()
+    public static bool IsExiting { get; set; }
+
+    public override async void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -26,16 +30,9 @@ public partial class App : Application
 
             SetupTrayIcon();
 
-            _mainWindow.Closing += (s, e) =>
-            {
-                if (_mainViewModel.CloseToTray)
-                {
-                    e.Cancel = true;
-                    _mainWindow.Hide();
-                }
-            };
-
             desktop.MainWindow = _mainWindow;
+
+            await _mainViewModel.LoadSettingsAsync();
 
             var args = Environment.GetCommandLineArgs();
             bool startMinimized = false;
@@ -49,6 +46,19 @@ public partial class App : Application
             {
                 _mainWindow.Show();
             }
+
+            Client.Core.Services.SingleInstanceIpc.WakeupRequested += () =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    if (_mainWindow != null)
+                    {
+                        _mainWindow.Show();
+                        _mainWindow.WindowState = WindowState.Normal;
+                        _mainWindow.Activate();
+                    }
+                });
+            };
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -154,25 +164,23 @@ public partial class App : Application
 
     private async void RebuildTrayMenu()
     {
-        if (_trayIcon == null) return;
-
-        var menu = new NativeMenu();
-
-        // Account section
-        string accountText = GetString("Str_Tray_NotLoggedIn");
-        if (_mainViewModel != null && _mainViewModel.IsAuthenticated)
+        try
         {
-            try
+            if (_trayIcon == null) return;
+
+            var menu = new NativeMenu();
+
+            // Account section
+            string accountText = GetString("Str_Tray_NotLoggedIn");
+            if (_mainViewModel != null && _mainViewModel.IsAuthenticated)
             {
-                var storage = new Client.Desktop.Services.SecretStorage();
+                var storage = new Client.Core.Services.SecretStorage();
                 var result = await storage.GetSecretAsync("profile_name");
                 if (!string.IsNullOrEmpty(result))
                 {
                     accountText = result;
                 }
             }
-            catch { }
-        }
         menu.Items.Add(new NativeMenuItem { Header = accountText, IsEnabled = false });
 
         menu.Items.Add(new NativeMenuItemSeparator());
@@ -238,6 +246,8 @@ public partial class App : Application
         menu.Items.Add(exitItem);
 
         _trayIcon.Menu = menu;
+        }
+        catch { }
     }
 
     private void Show_Clicked(object? sender, EventArgs e)
@@ -254,6 +264,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            IsExiting = true;
             desktop.Shutdown();
         }
     }

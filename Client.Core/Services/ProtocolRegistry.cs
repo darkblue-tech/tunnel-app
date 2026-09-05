@@ -2,13 +2,19 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
+/// <summary>
+/// Handles registering the darktunnel:// custom URI scheme with the OS.
+/// </summary>
 public static class ProtocolRegistry
 {
+    /// <summary>
+    /// Registers the custom protocol for the current executable on Windows and Linux.
+    /// </summary>
     public static void Register()
     {
-        var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+        var exePath = Environment.ProcessPath;
         if (string.IsNullOrEmpty(exePath)) return;
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -43,7 +49,7 @@ MimeType=x-scheme-handler/darktunnel;
                 {
                     FileName = "xdg-mime",
                     Arguments = "default darktunnel.desktop x-scheme-handler/darktunnel",
-                    UseShellExecute = true,
+                    UseShellExecute = false,
                     CreateNoWindow = true
                 });
             }

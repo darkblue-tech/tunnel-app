@@ -9,8 +9,12 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using SIPSorcery.Net;
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
+/// <summary>
+/// WebRTC DataChannel implementation of the control channel client.
+/// Used for peer-to-peer capabilities and NAT traversal when direct connections are needed.
+/// </summary>
 public class WebRtcControlChannelClient : IControlChannelClient
 {
     private RTCPeerConnection? _pc;
@@ -195,9 +199,9 @@ public class WebRtcControlChannelClient : IControlChannelClient
         return SendJsonAsync(new { type = "register_tunnel", subdomain, localHost, localPort, publicPort });
     }
 
-    public Task SendStreamDataAsync(string streamId, byte[] payload)
+    public Task SendStreamDataAsync(string streamId, ReadOnlyMemory<byte> payload)
     {
-        var b64 = Convert.ToBase64String(payload);
+        var b64 = Convert.ToBase64String(payload.Span);
         return SendJsonAsync(new { type = "stream_data", streamId, payload_b64 = b64 });
     }
 

@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Client.Desktop.ViewModels;
 
 namespace Client.Desktop.Views;
 
@@ -11,9 +12,14 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(Avalonia.Controls.WindowClosingEventArgs e)
     {
-        // Don't close the window, just hide it to the system tray
-        e.Cancel = true;
-        this.Hide();
+        if (!App.IsExiting && DataContext is MainWindowViewModel vm && vm.CloseToTray)
+        {
+            // Only hide to tray if CloseToTray is enabled and application is not shutting down
+            e.Cancel = true;
+            this.Hide();
+            return;
+        }
+
         base.OnClosing(e);
     }
 }

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using System;
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
-using Client.Desktop.Services;
+using Client.Core.Services;
 
 namespace Client.Desktop.ViewModels;
 
@@ -45,32 +45,53 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<TunnelItemViewModel> Tunnels { get; } = new();
 
+    private bool _isLoadingSettings;
+    private bool _isInitializingAutostart;
+
     public MainWindowViewModel()
     {
         _authService = new AuthService();
         _apiService = new ApiService(_authService);
+        
+        _isInitializingAutostart = true;
         RunAtStartup = AutostartHelper.IsAutostartEnabled();
-
-        var storage = new Client.Desktop.Services.SecretStorage();
-        _ = Task.Run(async () =>
-        {
-            if (bool.TryParse(await storage.GetSecretAsync("close_to_tray"), out var ctt))
-            {
-                CloseToTray = ctt;
-            }
-
-            if (bool.TryParse(await storage.GetSecretAsync("start_minimized"), out var sm))
-            {
-                StartMinimized = sm;
-            }
-        });
+        _isInitializingAutostart = false;
 
         // Default route
         CurrentViewModel = new LoginViewModel(this);
 
+        _ = LoadSettingsAsync();
         _ = InitializeAsync();
         _ = ApplyThemeAsync();
         _ = ApplyLanguageAsync();
+    }
+
+    public async Task LoadSettingsAsync()
+    {
+        try
+        {
+            _isLoadingSettings = true;
+            var storage = new Client.Core.Services.SecretStorage();
+            var cttVal = await storage.GetSecretAsync("close_to_tray");
+            if (bool.TryParse(cttVal, out var ctt))
+            {
+                CloseToTray = ctt;
+            }
+
+            var smVal = await storage.GetSecretAsync("start_minimized");
+            if (bool.TryParse(smVal, out var sm))
+            {
+                StartMinimized = sm;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load preferences: {ex.Message}");
+        }
+        finally
+        {
+            _isLoadingSettings = false;
+        }
     }
 
     private async Task ApplyLanguageAsync()
@@ -118,14 +139,36 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task InitializeAsync()
     {
-        var token = await _authService.GetTokenAsync();
-        if (!string.IsNullOrEmpty(token))
+        var hasSession = await _authService.HasSavedSessionAsync();
+        if (hasSession)
         {
             IsAuthenticated = true;
             MainVM ??= new MainViewModel(this);
             CurrentViewModel = MainVM;
-            await LoadTunnelsAsync(token);
+
+            string token = string.Empty;
+            // Retry token acquisition to accommodate network establishing during PC boot
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                token = await _authService.GetTokenAsync();
+                if (!string.IsNullOrEmpty(token)) break;
+
+                if (!await _authService.HasSavedSessionAsync())
+                {
+                    await LogOutAsync();
+                    _ = CheckForUpdatesBackgroundAsync();
+                    return;
+                }
+
+                await Task.Delay(1000);
+            }
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                await LoadTunnelsAsync(token);
+            }
         }
+
         _ = CheckForUpdatesBackgroundAsync();
     }
 
@@ -171,12 +214,22 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             var updateService = new UpdateService();
-            await updateService.ApplyUpdateAsync(_pendingUpdateInfo);
+            var success = await updateService.ApplyUpdateAsync(_pendingUpdateInfo);
+            if (success && !OperatingSystem.IsWindows())
+            {
+                HasUpdateResult = false;
+            }
         }
         finally
         {
             IsUpdating = false;
         }
+    }
+
+    [RelayCommand]
+    private void DismissUpdate()
+    {
+        HasUpdateResult = false;
     }
 
     [ObservableProperty]
@@ -190,17 +243,20 @@ public partial class MainWindowViewModel : ViewModelBase
 
     partial void OnRunAtStartupChanged(bool value)
     {
+        if (_isInitializingAutostart) return;
         AutostartHelper.SetAutostart(value);
     }
 
     partial void OnCloseToTrayChanged(bool value)
     {
-        _ = new Client.Desktop.Services.SecretStorage().SaveSecretAsync("close_to_tray", value.ToString());
+        if (_isLoadingSettings) return;
+        _ = new Client.Core.Services.SecretStorage().SaveSecretAsync("close_to_tray", value.ToString());
     }
 
     partial void OnStartMinimizedChanged(bool value)
     {
-        _ = new Client.Desktop.Services.SecretStorage().SaveSecretAsync("start_minimized", value.ToString());
+        if (_isLoadingSettings) return;
+        _ = new Client.Core.Services.SecretStorage().SaveSecretAsync("start_minimized", value.ToString());
     }
 
     public async Task LoginAndLoadTunnelsAsync()
@@ -241,10 +297,13 @@ public partial class MainWindowViewModel : ViewModelBase
         var token = await _authService.GetTokenAsync();
         if (string.IsNullOrEmpty(token))
         {
-            IsAuthenticated = false;
-            StatusKey = "Str_Status_SessionExpired";
-            await LogOutAsync();
-            return;
+            if (!await _authService.HasSavedSessionAsync())
+            {
+                IsAuthenticated = false;
+                StatusKey = "Str_Status_SessionExpired";
+                await LogOutAsync();
+                return;
+            }
         }
 
         await LoadTunnelsAsync(token);
@@ -252,7 +311,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task LoadTunnelsAsync(string serverToken)
     {
-        List<Client.Desktop.Models.TunnelModel> tunnelsData;
+        List<Client.Core.Models.TunnelModel> tunnelsData;
         try
         {
             tunnelsData = await _apiService.GetTunnelsAsync();
