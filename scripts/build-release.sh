@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 echo "=== Building DarkTunnel Client v${VERSION} ==="
 
-TARGETS=("win-x64" "win-arm64" "linux-x64" "linux-arm64" "osx-x64" "osx-arm64" "freebsd-x64")
+TARGETS=("win-x64" "win-arm64" "linux-x64" "linux-arm64" "osx-x64" "osx-arm64")
 
 mkdir -p "${ROOT_DIR}/out/dist"
 mkdir -p "${ROOT_DIR}/out/installers"
