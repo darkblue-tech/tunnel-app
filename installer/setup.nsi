@@ -1,8 +1,8 @@
 ; Modern NSIS MUI2 Installer Script for DarkTunnel Client (Offline Standalone)
-; Usage: makensis /DAPP_VERSION=1.0.1 /DARCH=win-x64 /DSOURCE_DIR=..\out\win-x64 installer\setup.nsi
+; Usage: makensis /DAPP_VERSION=1.0.3 /DARCH=win-x64 /DSOURCE_DIR=..\out\win-x64 installer\setup.nsi
 
 !ifndef APP_VERSION
-  !define APP_VERSION "1.0.1"
+  !define APP_VERSION "1.0.3"
 !endif
 
 !ifndef ARCH

@@ -1,8 +1,8 @@
 ; Inno Setup Script for DarkTunnel Client Standalone Offline Installer
-; Usage: iscc /DAppVersion=1.0.1 /DArch=win-x64 /DSourceDir=..\out\win-x64 setup.iss
+; Usage: iscc /DAppVersion=1.0.3 /DArch=win-x64 /DSourceDir=..\out\win-x64 setup.iss
 
 #ifndef AppVersion
-#define AppVersion "1.0.1"
+#define AppVersion "1.0.3"
 #endif
 
 #ifndef Arch
