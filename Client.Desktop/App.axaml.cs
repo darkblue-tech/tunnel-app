@@ -54,11 +54,26 @@ public partial class App : Application
                     if (_mainWindow != null)
                     {
                         _mainWindow.Show();
-                        _mainWindow.WindowState = WindowState.Normal;
+                        if (_mainWindow.WindowState == WindowState.Minimized)
+                        {
+                            _mainWindow.WindowState = WindowState.Normal;
+                        }
                         _mainWindow.Activate();
+                        _mainWindow.Topmost = true;
+                        _mainWindow.Topmost = false;
+                        _mainWindow.Focus();
                     }
                 });
             };
+
+            foreach (var arg in args)
+            {
+                var clean = arg.Trim().Trim('"', '\'');
+                if (clean.StartsWith("darktunnel://", StringComparison.OrdinalIgnoreCase))
+                {
+                    Client.Core.Services.SingleInstanceIpc.ProcessIncomingMessage(clean);
+                }
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
