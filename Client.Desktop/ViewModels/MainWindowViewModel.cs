@@ -179,9 +179,6 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _updateVersionText = string.Empty;
 
     [ObservableProperty]
-    private string _updateNotesText = string.Empty;
-
-    [ObservableProperty]
     private bool _isUpdating;
 
     [ObservableProperty]
@@ -204,7 +201,6 @@ public partial class MainWindowViewModel : ViewModelBase
                 Dispatcher.UIThread.Post(() =>
                 {
                     UpdateVersionText = result.LatestVersion;
-                    UpdateNotesText = result.ReleaseNotes;
                     HasUpdateResult = true;
                 });
             }
