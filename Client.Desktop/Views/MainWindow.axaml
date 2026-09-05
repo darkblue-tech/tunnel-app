@@ -49,7 +49,7 @@
                 BoxShadow="0 8 24 0 #40000000"
                 IsVisible="{Binding HasUpdateResult}">
             <Grid RowDefinitions="Auto,Auto,Auto">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,12">
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <TextBlock Text="{DynamicResource Str_Update_Title}" FontSize="16" FontWeight="Black" Foreground="{DynamicResource TextPrimary}"/>
                         <Border Background="{DynamicResource BgPrimary}" CornerRadius="6" Padding="6,2">
@@ -58,17 +58,28 @@
                     </StackPanel>
                     
                     <Button Grid.Column="2" Command="{Binding DismissUpdateCommand}" 
+                            IsEnabled="{Binding !IsUpdating}"
                             Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand">
                         <Svg Path="avares://DarkTunnel Client/Assets/Icons/x.svg" Width="18" Height="18"/>
                     </Button>
                 </Grid>
 
-                <TextBlock Grid.Row="1" Text="{Binding UpdateNotesText}" 
-                           FontSize="12" Foreground="{DynamicResource TextPrimary}" 
-                           Opacity="0.8" TextWrapping="Wrap" Margin="0,8,0,12" MaxHeight="60" />
+                <StackPanel Grid.Row="1" Margin="0,0,0,12" IsVisible="{Binding IsUpdating}">
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                        <TextBlock Grid.Column="0" Text="{Binding UpdateProgressText}" 
+                                   FontSize="12" Foreground="{DynamicResource TextPrimary}" Opacity="0.8"/>
+                        <TextBlock Grid.Column="1" Text="{Binding UpdateProgressPercentage, StringFormat='{}{0:0}%'}" 
+                                   FontSize="12" FontWeight="Bold" Foreground="{DynamicResource IconAccent}"/>
+                    </Grid>
+                    <ProgressBar Value="{Binding UpdateProgressPercentage}" Minimum="0" Maximum="100" 
+                                 Height="6" CornerRadius="3"
+                                 Background="{DynamicResource BgPrimary}" 
+                                 Foreground="{DynamicResource IconAccent}"/>
+                </StackPanel>
 
                 <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
                     <Button Command="{Binding DismissUpdateCommand}" 
+                            IsEnabled="{Binding !IsUpdating}"
                             Background="Transparent" BorderBrush="{DynamicResource Stroke}" 
                             BorderThickness="1" CornerRadius="6" Padding="12,6" Cursor="Hand">
                         <TextBlock Text="{DynamicResource Str_Update_Dismiss}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
