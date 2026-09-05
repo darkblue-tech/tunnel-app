@@ -48,8 +48,8 @@
                 Padding="16,14"
                 BoxShadow="0 8 24 0 #40000000"
                 IsVisible="{Binding HasUpdateResult}">
-            <Grid RowDefinitions="Auto,Auto,Auto,Auto">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+            <Grid RowDefinitions="Auto,Auto,Auto">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,12">
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <TextBlock Text="{DynamicResource Str_Update_Title}" FontSize="16" FontWeight="Black" Foreground="{DynamicResource TextPrimary}"/>
                         <Border Background="{DynamicResource BgPrimary}" CornerRadius="6" Padding="6,2">
@@ -64,11 +64,7 @@
                     </Button>
                 </Grid>
 
-                <TextBlock Grid.Row="1" Text="{Binding UpdateNotesText}" 
-                           FontSize="12" Foreground="{DynamicResource TextPrimary}" 
-                           Opacity="0.8" TextWrapping="Wrap" Margin="0,8,0,12" MaxHeight="60" />
-
-                <StackPanel Grid.Row="2" Margin="0,0,0,12" IsVisible="{Binding IsUpdating}">
+                <StackPanel Grid.Row="1" Margin="0,0,0,12" IsVisible="{Binding IsUpdating}">
                     <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
                         <TextBlock Grid.Column="0" Text="{Binding UpdateProgressText}" 
                                    FontSize="12" Foreground="{DynamicResource TextPrimary}" Opacity="0.8"/>
@@ -81,7 +77,7 @@
                                  Foreground="{DynamicResource IconAccent}"/>
                 </StackPanel>
 
-                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
                     <Button Command="{Binding DismissUpdateCommand}" 
                             IsEnabled="{Binding !IsUpdating}"
                             Background="Transparent" BorderBrush="{DynamicResource Stroke}" 
