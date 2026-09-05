@@ -1,7 +1,6 @@
 # DarkTunnel Client
 
 [![GitHub Release](https://img.shields.io/github/v/release/darkblue-tech/tunnel-app?style=flat-square)](https://github.com/darkblue-tech/tunnel-app/releases)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/darkblue-tech/tunnel-app/release.yml?style=flat-square)](https://github.com/darkblue-tech/tunnel-app/actions)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg?style=flat-square)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4.svg?style=flat-square)](https://dotnet.microsoft.com/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)](#supported-platforms-and-distributions)
