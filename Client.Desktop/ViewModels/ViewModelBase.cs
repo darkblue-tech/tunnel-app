@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
+using Client.Core.Services;
+using Client.Core.Models;
 namespace Client.Desktop.ViewModels;
 
 public abstract partial class ViewModelBase : ObservableObject

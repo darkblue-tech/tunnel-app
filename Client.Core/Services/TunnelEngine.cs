@@ -4,8 +4,12 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
+/// <summary>
+/// The core engine responsible for orchestrating the tunnel connection, 
+/// managing protocols, and handling data streams.
+/// </summary>
 public class TunnelEngine
 {
     public event Action<string>? OnLog;
@@ -96,7 +100,7 @@ public class TunnelEngine
                 }
                 else if (t == "gRPC")
                 {
-                    var grpcClient = new Client.Desktop.Grpc.ControlChannelGrpcClient();
+                    var grpcClient = new Client.Core.Grpc.ControlChannelGrpcClient();
                     var res = await TryConnectProtocolAsync(grpcClient, httpsUri, serverToken);
                     client = res.Client;
                     firstMsg = res.FirstMsg;
@@ -124,19 +128,21 @@ public class TunnelEngine
             return;
         }
 
+        using var connectionCts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime!.Token);
+
         _ = Task.Run(async () =>
         {
-            while (_lifetime != null && !_lifetime.IsCancellationRequested)
+            while (!connectionCts.IsCancellationRequested)
             {
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(20), _lifetime.Token);
+                    await Task.Delay(TimeSpan.FromSeconds(20), connectionCts.Token);
                     if (client != null) await client.SendPingAsync();
                 }
                 catch (OperationCanceledException) { break; }
                 catch { break; }
             }
-        });
+        }, connectionCts.Token);
 
         var isRegistered = false;
         var message = firstMsg;
@@ -232,6 +238,8 @@ public class TunnelEngine
             await kv.Value.CloseAsync();
         }
         
+        connectionCts.Cancel();
+
         if (client != null)
         {
             await client.DisposeAsync();
@@ -275,7 +283,10 @@ internal sealed class LocalStreamSession
         _registry = registry;
         _log = log;
         _onCountChanged = onCountChanged;
-        _writeChannel = System.Threading.Channels.Channel.CreateUnbounded<byte[]>();
+        _writeChannel = System.Threading.Channels.Channel.CreateBounded<byte[]>(new System.Threading.Channels.BoundedChannelOptions(256)
+        {
+            FullMode = System.Threading.Channels.BoundedChannelFullMode.Wait
+        });
     }
 
     public async Task StartAsync()
@@ -308,31 +319,35 @@ internal sealed class LocalStreamSession
 
     private async Task ReadLoopAsync()
     {
-        var buffer = new byte[16 * 1024];
-        while (!_cts.IsCancellationRequested && _localStream != null)
+        var buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(16 * 1024);
+        try
         {
-            var read = await _localStream.ReadAsync(buffer, 0, buffer.Length, _cts.Token);
-            if (read <= 0) break;
+            while (!_cts.IsCancellationRequested && _localStream != null)
+            {
+                var read = await _localStream.ReadAsync(buffer, 0, buffer.Length, _cts.Token);
+                if (read <= 0) break;
 
-            var payload = new byte[read];
-            Array.Copy(buffer, payload, read);
-            
-            BandwidthTracker.AddTx(read);
-            
-            try
-            {
-                await _client.SendStreamDataAsync(_streamId, payload);
-            }
-            catch (Exception ex)
-            {
-                if (!_cts.IsCancellationRequested)
+                BandwidthTracker.AddTx(read);
+                
+                try
                 {
-                    _log($"Stream {_streamId} send error: {ex.Message}");
-                    break;
+                    await _client.SendStreamDataAsync(_streamId, buffer.AsMemory(0, read));
+                }
+                catch (Exception ex)
+                {
+                    if (!_cts.IsCancellationRequested)
+                    {
+                        _log($"Stream {_streamId} send error: {ex.Message}");
+                        break;
+                    }
                 }
             }
         }
-        _writeChannel.Writer.TryComplete();
+        finally
+        {
+            System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
+            _writeChannel.Writer.TryComplete();
+        }
     }
 
     private async Task WriteLoopAsync()
@@ -348,13 +363,12 @@ internal sealed class LocalStreamSession
         }
     }
 
-    public Task WriteToLocalAsync(byte[] payload)
+    public async Task WriteToLocalAsync(byte[] payload)
     {
         if (!_cts.IsCancellationRequested)
         {
-            _writeChannel.Writer.TryWrite(payload);
+            await _writeChannel.Writer.WriteAsync(payload, _cts.Token);
         }
-        return Task.CompletedTask;
     }
 
     public async Task CloseAsync()

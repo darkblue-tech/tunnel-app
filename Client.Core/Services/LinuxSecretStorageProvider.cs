@@ -2,38 +2,62 @@ using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
+/// <summary>
+/// Provides secure secret storage on Linux by wrapping the 'secret-tool' CLI utility.
+/// </summary>
 public class LinuxSecretStorageProvider : ISecretStorageProvider
 {
     private const string ServiceName = "DarkTunnel";
+    private readonly FallbackSecretStorageProvider _fallback = new();
 
     public async Task SaveSecretAsync(string key, string secret)
     {
-        var result = await RunCommandWithInputAsync("secret-tool", secret, "store", "--label=DarkTunnel", "service", ServiceName, "account", key);
-        if (result.ExitCode != 0)
+        try
         {
-            throw new Exception($"Failed to save secret using secret-tool: {result.Error}. Ensure libsecret-tools is installed.");
+            var result = await RunCommandWithInputAsync("secret-tool", secret, "store", "--label=DarkTunnel", "service", ServiceName, "account", key);
+            if (result.ExitCode != 0)
+            {
+                await _fallback.SaveSecretAsync(key, secret);
+            }
+        }
+        catch
+        {
+            await _fallback.SaveSecretAsync(key, secret);
         }
     }
 
     public async Task<string?> GetSecretAsync(string key)
     {
-        var result = await RunCommandAsync("secret-tool", "lookup", "service", ServiceName, "account", key);
-        if (result.ExitCode != 0 || string.IsNullOrEmpty(result.Output))
+        try
         {
-            return null;
+            var result = await RunCommandAsync("secret-tool", "lookup", "service", ServiceName, "account", key);
+            if (result.ExitCode == 0 && !string.IsNullOrEmpty(result.Output))
+            {
+                return result.Output;
+            }
         }
-        return result.Output;
+        catch
+        {
+            // Ignore error and try fallback
+        }
+
+        return await _fallback.GetSecretAsync(key);
     }
 
     public async Task ClearSecretAsync(string key)
     {
-        var result = await RunCommandAsync("secret-tool", "clear", "service", ServiceName, "account", key);
-        if (result.ExitCode != 0)
+        try
         {
-            // Ignore clear errors (e.g., if it didn't exist)
+            await RunCommandAsync("secret-tool", "clear", "service", ServiceName, "account", key);
         }
+        catch
+        {
+            // Ignore
+        }
+
+        await _fallback.ClearSecretAsync(key);
     }
 
     private async Task<(int ExitCode, string Output, string Error)> RunCommandAsync(string fileName, params string[] args)

@@ -4,9 +4,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Net.Client;
-using Client.Desktop.Services;
+using Client.Core.Services;
+using Client.Desktop.Grpc;
 
-namespace Client.Desktop.Grpc;
+namespace Client.Core.Grpc;
 
 /// <summary>
 /// gRPC client for tunnel control channel.
@@ -115,7 +116,7 @@ public class ControlChannelGrpcClient : IControlChannelClient
     /// <summary>
     /// Sends stream data to server (binary payload, no base64 encoding needed).
     /// </summary>
-    public async Task SendStreamDataAsync(string streamId, byte[] payload)
+    public async Task SendStreamDataAsync(string streamId, ReadOnlyMemory<byte> payload)
     {
         if (_streamCall?.RequestStream == null)
             throw new InvalidOperationException("Not connected to gRPC server");
@@ -125,7 +126,7 @@ public class ControlChannelGrpcClient : IControlChannelClient
             StreamData = new StreamDataMessage 
             { 
                 StreamId = streamId,
-                Payload = Google.Protobuf.ByteString.CopyFrom(payload)
+                Payload = Google.Protobuf.ByteString.CopyFrom(payload.Span)
             }
         };
 

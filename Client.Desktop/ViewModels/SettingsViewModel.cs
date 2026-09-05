@@ -1,24 +1,29 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
+using Client.Core.Services;
+using Client.Core.Models;
 namespace Client.Desktop.ViewModels;
 
 public partial class SettingsViewModel : ViewModelBase
 {
     private readonly MainWindowViewModel _parent;
+    private bool _isInitializing;
 
     public SettingsViewModel(MainWindowViewModel parent)
     {
         _parent = parent;
+        _isInitializing = true;
         RunAtStartup = parent.RunAtStartup;
         CloseToTray = parent.CloseToTray;
         StartMinimized = parent.StartMinimized;
+        _isInitializing = false;
         _ = LoadProfileAsync();
     }
 
     private async Task LoadProfileAsync()
     {
-        var storage = new Client.Desktop.Services.SecretStorage();
+        var storage = new Client.Core.Services.SecretStorage();
         UserName = await storage.GetSecretAsync("profile_name") ?? "System Administrator";
         
         var savedTheme = await storage.GetSecretAsync("theme");
@@ -71,7 +76,7 @@ public partial class SettingsViewModel : ViewModelBase
                 _ => Avalonia.Styling.ThemeVariant.Default
             };
         }
-        _ = new Client.Desktop.Services.SecretStorage().SaveSecretAsync("theme", value);
+        _ = new Client.Core.Services.SecretStorage().SaveSecretAsync("theme", value);
     }
 
     [ObservableProperty]
@@ -92,7 +97,7 @@ public partial class SettingsViewModel : ViewModelBase
             _ => "en"
         };
         _parent.SetLanguageCore(langCode);
-        _ = new Client.Desktop.Services.SecretStorage().SaveSecretAsync("language", langCode);
+        _ = new Client.Core.Services.SecretStorage().SaveSecretAsync("language", langCode);
     }
 
     [ObservableProperty]
@@ -102,22 +107,25 @@ public partial class SettingsViewModel : ViewModelBase
 
     partial void OnTransportChanged(string value)
     {
-        _ = new Client.Desktop.Services.SecretStorage().SaveSecretAsync("transport", value);
+        _ = new Client.Core.Services.SecretStorage().SaveSecretAsync("transport", value);
         _parent.TriggerReconnectTunnels();
     }
 
     partial void OnRunAtStartupChanged(bool value)
     {
+        if (_isInitializing) return;
         _parent.RunAtStartup = value;
     }
 
     partial void OnCloseToTrayChanged(bool value)
     {
+        if (_isInitializing) return;
         _parent.CloseToTray = value;
     }
 
     partial void OnStartMinimizedChanged(bool value)
     {
+        if (_isInitializing) return;
         _parent.StartMinimized = value;
     }
 

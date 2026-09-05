@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Client.Desktop
+namespace Client.Core
 {
     public sealed class ControlChannelClient : IAsyncDisposable
     {

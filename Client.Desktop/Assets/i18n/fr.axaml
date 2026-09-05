@@ -39,4 +39,8 @@
     <system:String x:Key="Str_Tray_DisconnectAll">Tout déconnecter</system:String>
     <system:String x:Key="Str_Tray_NotLoggedIn">Non connecté</system:String>
     <system:String x:Key="Str_Transport">Transport</system:String>
+    <system:String x:Key="Str_Update_Title">Mise à jour disponible</system:String>
+    <system:String x:Key="Str_Update_Apply">Mettre à jour</system:String>
+    <system:String x:Key="Str_Update_Downloading">Téléchargement...</system:String>
+    <system:String x:Key="Str_Update_Dismiss">Plus tard</system:String>
 </ResourceDictionary>

@@ -6,8 +6,12 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Client.Desktop.Services;
+namespace Client.Core.Services;
 
+/// <summary>
+/// WebSocket implementation of the control channel client.
+/// Used as a fallback transport when QUIC and WebRTC are unavailable.
+/// </summary>
 public class WebSocketControlChannelClient : IControlChannelClient
 {
     private readonly ClientWebSocket _ws = new();
@@ -31,9 +35,9 @@ public class WebSocketControlChannelClient : IControlChannelClient
         return SendJsonAsync(new { type = "register_tunnel", subdomain, localHost, localPort, publicPort });
     }
 
-    public Task SendStreamDataAsync(string streamId, byte[] payload)
+    public Task SendStreamDataAsync(string streamId, ReadOnlyMemory<byte> payload)
     {
-        var b64 = Convert.ToBase64String(payload);
+        var b64 = Convert.ToBase64String(payload.Span);
         return SendJsonAsync(new { type = "stream_data", streamId, payload_b64 = b64 });
     }
 
