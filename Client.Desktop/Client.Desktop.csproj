@@ -8,9 +8,9 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>DarkTunnel Client</AssemblyName>
-    <Version>1.0.4</Version>
-    <InformationalVersion>1.0.4r</InformationalVersion>
-    <ApplicationVersion>1.0.4.0</ApplicationVersion>
+    <Version>1.0.5</Version>
+    <InformationalVersion>1.0.5r</InformationalVersion>
+    <ApplicationVersion>1.0.5.0</ApplicationVersion>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Company>darkblue.tech</Company>
     <Authors>Artem Ratushnyak</Authors>

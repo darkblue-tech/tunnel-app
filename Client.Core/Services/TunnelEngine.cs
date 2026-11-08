@@ -331,7 +331,7 @@ internal sealed class LocalStreamSession
         _registry = registry;
         _log = log;
         _onCountChanged = onCountChanged;
-        _writeChannel = System.Threading.Channels.Channel.CreateBounded<byte[]>(new System.Threading.Channels.BoundedChannelOptions(256)
+        _writeChannel = System.Threading.Channels.Channel.CreateBounded<byte[]>(new System.Threading.Channels.BoundedChannelOptions(32)
         {
             FullMode = System.Threading.Channels.BoundedChannelFullMode.Wait
         });
@@ -380,6 +380,7 @@ internal sealed class LocalStreamSession
                 try
                 {
                     await _client.SendStreamDataAsync(_streamId, buffer.AsMemory(0, read));
+                    await Task.Yield();
                 }
                 catch (Exception ex)
                 {
