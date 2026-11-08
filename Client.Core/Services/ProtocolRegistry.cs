@@ -4,14 +4,8 @@ using System.Runtime.InteropServices;
 
 namespace Client.Core.Services;
 
-/// <summary>
-/// Handles registering the darktunnel:// custom URI scheme with the OS.
-/// </summary>
 public static class ProtocolRegistry
 {
-    /// <summary>
-    /// Registers the custom protocol for the current executable on Windows and Linux.
-    /// </summary>
     public static void Register()
     {
         var exePath = Environment.ProcessPath;

@@ -14,7 +14,6 @@ public partial class MainWindow : Window
     {
         if (!App.IsExiting && DataContext is MainWindowViewModel vm && vm.CloseToTray)
         {
-            // Only hide to tray if CloseToTray is enabled and application is not shutting down
             e.Cancel = true;
             this.Hide();
             return;

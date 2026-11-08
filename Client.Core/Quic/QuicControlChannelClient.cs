@@ -7,15 +7,12 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Client.Core.Services;
 
 #pragma warning disable CA1416
 
-namespace Client.Core.Services;
+namespace Client.Core.Quic;
 
-/// <summary>
-/// QUIC implementation of the control channel client.
-/// Provides a fast, multiplexed, and secure connection.
-/// </summary>
 public class QuicControlChannelClient : IControlChannelClient
 {
     private QuicConnection? _connection;
@@ -45,7 +42,6 @@ public class QuicControlChannelClient : IControlChannelClient
                 { 
                     new SslApplicationProtocol("tunnel-quic") 
                 },
-                // Validate the remote certificate
                 RemoteCertificateValidationCallback = (sender, cert, chain, errors) => errors == SslPolicyErrors.None
             },
             DefaultStreamErrorCode = 0,
@@ -57,7 +53,6 @@ public class QuicControlChannelClient : IControlChannelClient
 
         _connection = await QuicConnection.ConnectAsync(options, cancellationToken);
         
-        // Open the primary control stream
         _controlStream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, cancellationToken);
         _reader = new StreamReader(_controlStream, Encoding.UTF8, leaveOpen: true);
     }
@@ -133,6 +128,10 @@ public class QuicControlChannelClient : IControlChannelClient
                 case "register_error":
                 case "rate_limited":
                     dto.Error = root.GetProperty("error").GetString();
+                    break;
+                case "stream_error":
+                    dto.Error = root.TryGetProperty("error", out var seErr) ? seErr.GetString() : null;
+                    dto.StreamId = root.TryGetProperty("streamId", out var seId) ? seId.GetString() : null;
                     break;
                 case "register_ack":
                     dto.PublicUrl = root.GetProperty("publicUrl").GetString();

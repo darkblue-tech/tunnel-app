@@ -9,10 +9,6 @@ using Client.Desktop.Grpc;
 
 namespace Client.Core.Grpc;
 
-/// <summary>
-/// gRPC client for tunnel control channel.
-/// Implements type-safe bi-directional stream communication with server.
-/// </summary>
 public class ControlChannelGrpcClient : IControlChannelClient
 {
     private GrpcChannel? _channel;
@@ -20,16 +16,13 @@ public class ControlChannelGrpcClient : IControlChannelClient
     private AsyncDuplexStreamingCall<ControlMessage, ControlResponse>? _streamCall;
     private CancellationTokenSource? _cts;
 
-    /// <summary>
-    /// Connects to gRPC server and establishes control channel.
-    /// </summary>
     public async Task ConnectAsync(Uri uri, CancellationToken cancellationToken = default)
     {
         var channelOptions = new GrpcChannelOptions
         {
             HttpHandler = new SocketsHttpHandler 
             { 
-                UseProxy = false, // Disable proxy to avoid gRPC HTTP/2 proxy issues
+                UseProxy = false,
                 KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,
                 KeepAlivePingDelay = TimeSpan.FromSeconds(30),
                 KeepAlivePingTimeout = TimeSpan.FromSeconds(10)
@@ -47,13 +40,9 @@ public class ControlChannelGrpcClient : IControlChannelClient
         _client = new TunnelControl.TunnelControlClient(_channel);
         _cts = new CancellationTokenSource();
 
-        // Start bi-directional stream
         _streamCall = _client.StreamControlMessages(cancellationToken: cancellationToken);
     }
 
-    /// <summary>
-    /// Sends authentication message to server.
-    /// </summary>
     public async Task SendAuthAsync(string clientName, string? accessToken = null)
     {
         if (_streamCall?.RequestStream == null)
@@ -71,9 +60,6 @@ public class ControlChannelGrpcClient : IControlChannelClient
         await _streamCall.RequestStream.WriteAsync(message);
     }
 
-    /// <summary>
-    /// Sends heartbeat ping to server.
-    /// </summary>
     public async Task SendPingAsync()
     {
         if (_streamCall?.RequestStream == null)
@@ -87,9 +73,6 @@ public class ControlChannelGrpcClient : IControlChannelClient
         await _streamCall.RequestStream.WriteAsync(message);
     }
 
-    /// <summary>
-    /// Sends tunnel registration request to server.
-    /// </summary>
     public async Task SendRegisterTunnelAsync(
         string subdomain,
         string localHost,
@@ -113,9 +96,6 @@ public class ControlChannelGrpcClient : IControlChannelClient
         await _streamCall.RequestStream.WriteAsync(message);
     }
 
-    /// <summary>
-    /// Sends stream data to server (binary payload, no base64 encoding needed).
-    /// </summary>
     public async Task SendStreamDataAsync(string streamId, ReadOnlyMemory<byte> payload)
     {
         if (_streamCall?.RequestStream == null)
@@ -133,9 +113,6 @@ public class ControlChannelGrpcClient : IControlChannelClient
         await _streamCall.RequestStream.WriteAsync(message);
     }
 
-    /// <summary>
-    /// Sends stream close notification to server.
-    /// </summary>
     public async Task SendStreamCloseAsync(string streamId)
     {
         if (_streamCall?.RequestStream == null)
@@ -152,10 +129,6 @@ public class ControlChannelGrpcClient : IControlChannelClient
         await _streamCall.RequestStream.WriteAsync(message);
     }
 
-    /// <summary>
-    /// Receives response from server.
-    /// Returns null when stream is closed.
-    /// </summary>
     public async Task<ControlMessageDto?> ReceiveAsync(CancellationToken cancellationToken = default)
     {
         if (_streamCall?.ResponseStream == null)
@@ -217,11 +190,6 @@ public class ControlChannelGrpcClient : IControlChannelClient
         return null;
     }
 
-
-
-    /// <summary>
-    /// Closes the connection gracefully and releases resources.
-    /// </summary>
     public async ValueTask DisposeAsync()
     {
         try

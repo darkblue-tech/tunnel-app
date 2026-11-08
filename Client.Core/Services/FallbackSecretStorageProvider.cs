@@ -7,11 +7,6 @@ using System.Threading.Tasks;
 
 namespace Client.Core.Services;
 
-/// <summary>
-/// Provides secure secret storage using AES-256-GCM encrypted files protected with
-/// user and machine entropy, restricted Unix permissions, and memory caching.
-/// Used on platforms or environments where native credential managers are unavailable.
-/// </summary>
 public class FallbackSecretStorageProvider : ISecretStorageProvider
 {
     private readonly string _storageDir;
@@ -41,7 +36,6 @@ public class FallbackSecretStorageProvider : ISecretStorageProvider
 
     private string GetFilePath(string key)
     {
-        // Sanitize key for valid filename
         var safeKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..16];
         return Path.Combine(_storageDir, $"sec_{safeKey}.dat");
     }

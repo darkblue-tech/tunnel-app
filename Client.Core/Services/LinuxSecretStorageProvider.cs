@@ -4,9 +4,6 @@ using System.Threading.Tasks;
 
 namespace Client.Core.Services;
 
-/// <summary>
-/// Provides secure secret storage on Linux by wrapping the 'secret-tool' CLI utility.
-/// </summary>
 public class LinuxSecretStorageProvider : ISecretStorageProvider
 {
     private const string ServiceName = "DarkTunnel";

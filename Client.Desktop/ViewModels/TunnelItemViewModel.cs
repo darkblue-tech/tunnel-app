@@ -73,7 +73,6 @@ public partial class TunnelItemViewModel : ViewModelBase
             }
             else
             {
-                // Restart with new token
                 IsConnected = false;
                 Start();
             }
@@ -135,8 +134,7 @@ public partial class TunnelItemViewModel : ViewModelBase
 
             var storage = new SecretStorage();
             var transport = await storage.GetSecretAsync("transport") ?? "Auto";
-            var token = await _authService.GetTokenAsync();
-            await _engine.StartTunnelAsync(serverUrl, subdomain, localHost, localPort, Data.PublicPort, token, transport);
+            await _engine.StartTunnelAsync(serverUrl, subdomain, localHost, localPort, Data.PublicPort, (forceRefresh) => _authService.GetTokenAsync(forceRefresh), transport);
         });
     }
 
@@ -189,9 +187,8 @@ public partial class TunnelItemViewModel : ViewModelBase
                 IsActuallyConnected = true;
                 if (!string.IsNullOrEmpty(publicUrl)) 
                 {
-                    // If it's a dynamic TCP port (7000+), replace https:// with http://
                     var url = publicUrl;
-                    if (url.Contains(":70") && url.StartsWith("https://"))
+                    if (url.StartsWith("https://") && !url.Contains(":443"))
                     {
                         url = "http://" + url.Substring(8);
                     }

@@ -4,16 +4,10 @@ using System.Reflection;
 
 namespace Client.Core.Services;
 
-/// <summary>
-/// Provides functionality to configure the application to launch automatically on system startup.
-/// </summary>
 public static class AutostartHelper
 {
     private const string AppName = "DarkTunnelClient";
 
-    /// <summary>
-    /// Enables or disables application autostart on Windows, macOS, or Linux.
-    /// </summary>
     public static void SetAutostart(bool enable)
     {
         var execPath = Environment.ProcessPath;
@@ -24,7 +18,6 @@ public static class AutostartHelper
             return;
         }
 
-        // Handle AppImage on Linux
         if (OperatingSystem.IsLinux())
         {
             var appImage = Environment.GetEnvironmentVariable("APPIMAGE");
@@ -34,7 +27,6 @@ public static class AutostartHelper
             }
         }
 
-        // On .NET Core / 5+, Location might be the .dll. We want the executable.
         if (execPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
         {
             var exe = execPath.Substring(0, execPath.Length - 4) + (OperatingSystem.IsWindows() ? ".exe" : "");
@@ -60,9 +52,6 @@ public static class AutostartHelper
         }
     }
 
-    /// <summary>
-    /// Checks whether autostart is currently enabled for the application.
-    /// </summary>
     public static bool IsAutostartEnabled()
     {
         if (OperatingSystem.IsWindows())
@@ -84,7 +73,7 @@ public static class AutostartHelper
     {
         try
         {
-#pragma warning disable CA1416 // Validate platform compatibility
+#pragma warning disable CA1416 
             using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
             if (key != null)
             {
@@ -109,7 +98,7 @@ public static class AutostartHelper
     {
         try
         {
-#pragma warning disable CA1416 // Validate platform compatibility
+#pragma warning disable CA1416
             using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", false);
             return key?.GetValue(AppName) != null;
 #pragma warning restore CA1416

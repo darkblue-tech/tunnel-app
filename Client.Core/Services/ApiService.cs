@@ -8,9 +8,6 @@ using System.Threading.Tasks;
 
 namespace Client.Core.Services;
 
-/// <summary>
-/// Service for interacting with the DarkTunnel REST API (fetching tunnels, edge nodes, etc.).
-/// </summary>
 public class ApiService
 {
     private readonly HttpClient _httpClient;
@@ -38,7 +35,6 @@ public class ApiService
         var response = await _httpClient.SendAsync(request1);
         if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
-            // Token expired on server; attempt refresh and retry
             var newToken = await _authService.RefreshTokenAsync();
             if (string.IsNullOrEmpty(newToken))
             {
@@ -94,9 +90,6 @@ public class ApiService
         }
     }
 
-    /// <summary>
-    /// Represents the response model for a preferred edge node.
-    /// </summary>
     public class EdgeNodeResponse
     {
         public string Url { get; set; } = string.Empty;

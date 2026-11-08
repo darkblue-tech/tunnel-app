@@ -118,7 +118,6 @@ public partial class App : Application
                         }
                     };
                     
-                    // Trigger immediate update
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
                         UpdateTrayIcon();
@@ -145,12 +144,10 @@ public partial class App : Application
 
         if (_mainViewModel != null && _mainViewModel.IsAuthenticated)
         {
-            // If connected
             if (_mainViewModel.MainVM != null && _mainViewModel.MainVM.IsConnected)
             {
                 iconName = "tunnel_running_icon_x128.ico";
             }
-            // Check if any error state exists (for future expansion)
             else if (_mainViewModel.StatusKey == "Str_Status_AuthFailed")
             {
                 iconName = "tunnel_error_icon_x128.ico";
@@ -185,7 +182,6 @@ public partial class App : Application
 
             var menu = new NativeMenu();
 
-            // Account section
             string accountText = GetString("Str_Tray_NotLoggedIn");
             if (_mainViewModel != null && _mainViewModel.IsAuthenticated)
             {
@@ -200,13 +196,11 @@ public partial class App : Application
 
         menu.Items.Add(new NativeMenuItemSeparator());
 
-        // Status section
         if (_mainViewModel != null)
         {
             menu.Items.Add(new NativeMenuItem { Header = GetString(_mainViewModel.StatusKey), IsEnabled = false });
             menu.Items.Add(new NativeMenuItemSeparator());
 
-            // Tunnels
             foreach (var t in _mainViewModel.Tunnels)
             {
                 var tItem = new NativeMenuItem
@@ -229,7 +223,6 @@ public partial class App : Application
                 menu.Items.Add(new NativeMenuItemSeparator());
             }
 
-            // Global connect / disconnect
             var connectAll = new NativeMenuItem { Header = GetString("Str_Tray_ConnectAll") };
             connectAll.Click += (s, e) =>
             {

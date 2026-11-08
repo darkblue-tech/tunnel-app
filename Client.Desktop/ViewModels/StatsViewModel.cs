@@ -36,12 +36,11 @@ public partial class StatsViewModel : ViewModelBase, IDisposable
     {
         _parent = parent;
 
-        // Populate initial values from tracker
         _rxValues = new ObservableCollection<double>(BandwidthTracker.RxHistory);
         _txValues = new ObservableCollection<double>(BandwidthTracker.TxHistory);
 
-        var rxColor = new SKColor(76, 175, 80); // Green for Download
-        var txColor = new SKColor(33, 150, 243); // Blue for Upload
+        var rxColor = new SKColor(76, 175, 80); // Green
+        var txColor = new SKColor(33, 150, 243); // Blue
 
         Series = new ObservableCollection<ISeries>
         {

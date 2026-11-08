@@ -5,13 +5,10 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Client.Core.Services;
 
-namespace Client.Core.Services;
+namespace Client.Core.WebSocket;
 
-/// <summary>
-/// WebSocket implementation of the control channel client.
-/// Used as a fallback transport when QUIC and WebRTC are unavailable.
-/// </summary>
 public class WebSocketControlChannelClient : IControlChannelClient
 {
     private readonly ClientWebSocket _ws = new();
@@ -75,6 +72,10 @@ public class WebSocketControlChannelClient : IControlChannelClient
                     case "register_error":
                     case "rate_limited":
                         dto.Error = root.GetProperty("error").GetString();
+                        break;
+                    case "stream_error":
+                        dto.Error = root.TryGetProperty("error", out var seErr) ? seErr.GetString() : null;
+                        dto.StreamId = root.TryGetProperty("streamId", out var seId) ? seId.GetString() : null;
                         break;
                     case "register_ack":
                         dto.PublicUrl = root.GetProperty("publicUrl").GetString();

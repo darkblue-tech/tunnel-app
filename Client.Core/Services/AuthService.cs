@@ -10,9 +10,6 @@ using System.Threading.Tasks;
 
 namespace Client.Core.Services;
 
-/// <summary>
-/// Service responsible for managing user authentication, token acquisition, and OAuth2 flow.
-/// </summary>
 public class AuthService
 {
     public static TaskCompletionSource<string> AuthCodeCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -20,8 +17,8 @@ public class AuthService
     private readonly SecretStorage _secretStorage;
     private static readonly HttpClient _httpClient = new();
     private readonly string _clientId;
-
-    private readonly SemaphoreSlim _refreshLock = new(1, 1);
+    private static readonly SemaphoreSlim _refreshLock = new(1, 1);
+    private const int RefreshSkewSeconds = 300;
 
     public AuthService()
     {
@@ -29,9 +26,6 @@ public class AuthService
         _clientId = "j_OEiI1_qO8DGgb1k6E5zVX8FC9PUvvQLvYZwRlPhTI";
     }
 
-    /// <summary>
-    /// Checks if a given JWT access token is expired or expiring within the specified skew window.
-    /// </summary>
     public static bool IsTokenExpired(string token, int skewSeconds = 60)
     {
         if (string.IsNullOrWhiteSpace(token)) return true;
@@ -58,35 +52,28 @@ public class AuthService
         }
         catch
         {
-            // If token parsing fails, do not assume expired statically; let the API validate it
+            // let api validate
         }
 
         return false;
     }
 
-    /// <summary>
-    /// Returns true if a refresh token is present in secure storage, indicating an existing session.
-    /// </summary>
     public async Task<bool> HasSavedSessionAsync()
     {
         var refreshToken = await _secretStorage.GetSecretAsync("refresh_token");
         return !string.IsNullOrEmpty(refreshToken);
     }
 
-    /// <summary>
-    /// Retrieves a valid access token. If the stored access token is missing or expired,
-    /// it automatically attempts to refresh it using the stored refresh token.
-    /// </summary>
     public async Task<string> GetTokenAsync(bool forceRefresh = false)
     {
         var token = await _secretStorage.GetSecretAsync("access_token") ?? string.Empty;
 
-        if (forceRefresh || string.IsNullOrEmpty(token) || IsTokenExpired(token))
+        if (forceRefresh || string.IsNullOrEmpty(token) || IsTokenExpired(token, RefreshSkewSeconds))
         {
             var refreshToken = await _secretStorage.GetSecretAsync("refresh_token");
             if (!string.IsNullOrEmpty(refreshToken))
             {
-                var refreshedToken = await RefreshTokenAsync();
+                var refreshedToken = await RefreshTokenAsync(force: forceRefresh);
                 if (!string.IsNullOrEmpty(refreshedToken))
                 {
                     return refreshedToken;
@@ -94,7 +81,7 @@ public class AuthService
             }
         }
 
-        return token;
+        return IsTokenExpired(token, 0) ? string.Empty : token;
     }
 
     public async Task LogoutAsync()
@@ -146,7 +133,7 @@ public class AuthService
         }
         catch (TaskCanceledException)
         {
-            return null; // Indicates it was cancelled by a new login attempt
+            return null;
         }
         catch (Exception)
         {
@@ -160,10 +147,6 @@ public class AuthService
         return string.Empty;
     }
 
-    /// <summary>
-    /// Completes authentication when a deep link is received during a cold start or after process recovery.
-    /// Uses the securely stored code verifier if available.
-    /// </summary>
     public async Task<string?> CompletePendingLoginAsync(string code)
     {
         try
@@ -190,14 +173,13 @@ public class AuthService
         return null;
     }
 
-    public async Task<string?> RefreshTokenAsync(CancellationToken cancellationToken = default)
+    public async Task<string?> RefreshTokenAsync(CancellationToken cancellationToken = default, bool force = false)
     {
         await _refreshLock.WaitAsync(cancellationToken);
         try
         {
-            // Check if another concurrent call already refreshed the token
             var existingToken = await _secretStorage.GetSecretAsync("access_token");
-            if (!string.IsNullOrEmpty(existingToken) && !IsTokenExpired(existingToken))
+            if (!force && !string.IsNullOrEmpty(existingToken) && !IsTokenExpired(existingToken, RefreshSkewSeconds))
             {
                 return existingToken;
             }
@@ -206,7 +188,7 @@ public class AuthService
             if (string.IsNullOrEmpty(refreshToken)) return null;
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(15));
+            cts.CancelAfter(TimeSpan.FromSeconds(20));
 
             var request = new HttpRequestMessage(HttpMethod.Post, "https://tunnel.darkblue.tech/api/v1/auth/app/token");
             request.Content = new FormUrlEncodedContent(new[]
@@ -217,41 +199,59 @@ public class AuthService
             });
 
             var response = await _httpClient.SendAsync(request, cts.Token);
-            if (response.IsSuccessStatusCode)
-            {
-                var json = await response.Content.ReadAsStringAsync(cts.Token);
-                var doc = JsonDocument.Parse(json);
-                
-                if (doc.RootElement.TryGetProperty("refresh_token", out var refreshElement))
-                {
-                    var newRefreshToken = refreshElement.GetString();
-                    if (!string.IsNullOrEmpty(newRefreshToken))
-                    {
-                        await _secretStorage.SaveSecretAsync("refresh_token", newRefreshToken);
-                    }
-                }
+            var json = await response.Content.ReadAsStringAsync(cts.Token);
 
-                if (doc.RootElement.TryGetProperty("id_token", out var tokenElement))
+            JsonDocument? doc = null;
+            try { doc = JsonDocument.Parse(json); } catch (JsonException) { }
+
+            using (doc)
+            {
+                if (response.IsSuccessStatusCode && doc != null && !doc.RootElement.TryGetProperty("error", out _))
                 {
-                    var idToken = tokenElement.GetString() ?? "";
-                    var serverToken = await ExchangeForServerJwtAsync(idToken);
+                    var root = doc.RootElement;
+
+                    if (root.TryGetProperty("refresh_token", out var refreshElement))
+                    {
+                        var newRefreshToken = refreshElement.GetString();
+                        if (!string.IsNullOrEmpty(newRefreshToken))
+                        {
+                            await _secretStorage.SaveSecretAsync("refresh_token", newRefreshToken);
+                        }
+                    }
+
+                    string serverToken = string.Empty;
+                    if (root.TryGetProperty("id_token", out var tokenElement) && !string.IsNullOrEmpty(tokenElement.GetString()))
+                    {
+                        var idToken = tokenElement.GetString()!;
+                        serverToken = await ExchangeForServerJwtAsync(idToken);
+                        if (!string.IsNullOrEmpty(serverToken)) await ExtractAndSaveProfileAsync(idToken);
+                    }
+
+                    if (string.IsNullOrEmpty(serverToken) && root.TryGetProperty("access_token", out var idpAccess))
+                    {
+                        serverToken = await ExchangeForServerJwtAsync(null, idpAccess.GetString());
+                    }
+
                     if (!string.IsNullOrEmpty(serverToken))
                     {
                         await _secretStorage.SaveSecretAsync("access_token", serverToken);
-                        await ExtractAndSaveProfileAsync(idToken);
                         return serverToken;
                     }
+
+                    Debug.WriteLine("Token refresh succeeded but server JWT exchange failed (transient)");
+                    return null;
                 }
-            }
-            else if (response.StatusCode == HttpStatusCode.BadRequest || response.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                // Refresh token is revoked or permanently invalid -> clear credentials
-                await LogoutAsync();
-            }
-            else
-            {
-                // 5xx server error or other temporary failure - do not logout
-                Debug.WriteLine($"Token refresh endpoint returned {response.StatusCode}");
+
+                var error = doc != null && doc.RootElement.TryGetProperty("error", out var errEl) ? errEl.GetString() : null;
+                if (error == "invalid_grant" || error == "invalid_client" || error == "unauthorized_client")
+                {
+                    Debug.WriteLine($"Refresh token rejected by IdP: {error}");
+                    await LogoutAsync();
+                }
+                else
+                {
+                    Debug.WriteLine($"Token refresh transient failure: {(int)response.StatusCode} {error}");
+                }
             }
         }
         catch (OperationCanceledException)
@@ -309,7 +309,6 @@ public class AuthService
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            // We use the proxy endpoint on our backend to securely inject the client_secret
             var request = new HttpRequestMessage(HttpMethod.Post, "https://tunnel.darkblue.tech/api/v1/auth/app/token");
             request.Content = new FormUrlEncodedContent(new[]
             {
@@ -358,13 +357,14 @@ public class AuthService
         return string.Empty;
     }
 
-    private async Task<string> ExchangeForServerJwtAsync(string idToken)
+    private async Task<string> ExchangeForServerJwtAsync(string? idToken, string? idpAccessToken = null)
     {
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             var request = new HttpRequestMessage(HttpMethod.Post, "https://tunnel.darkblue.tech/api/v1/auth/exchange");
-            request.Content = new StringContent(JsonSerializer.Serialize(new { idToken = idToken }), Encoding.UTF8, "application/json");
+            object body = idToken != null ? new { idToken } : new { accessToken = idpAccessToken };
+            request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
 
             var response = await _httpClient.SendAsync(request, cts.Token);
             if (response.IsSuccessStatusCode)

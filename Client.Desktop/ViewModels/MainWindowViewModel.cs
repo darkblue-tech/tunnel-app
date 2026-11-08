@@ -36,7 +36,6 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private MainViewModel? _mainVM;
 
-    // Logs overlay logic
     [ObservableProperty]
     private bool _isLogsPanelOpen;
 
@@ -57,7 +56,6 @@ public partial class MainWindowViewModel : ViewModelBase
         RunAtStartup = AutostartHelper.IsAutostartEnabled();
         _isInitializingAutostart = false;
 
-        // Default route
         CurrentViewModel = new LoginViewModel(this);
 
         _ = LoadSettingsAsync();
@@ -105,7 +103,6 @@ public partial class MainWindowViewModel : ViewModelBase
         if (Avalonia.Application.Current == null) return;
         var dicts = Avalonia.Application.Current.Resources.MergedDictionaries;
         
-        // Remove old languages (ColorPalette is at index 0)
         while (dicts.Count > 1)
         {
             dicts.RemoveAt(1);
@@ -147,7 +144,6 @@ public partial class MainWindowViewModel : ViewModelBase
             CurrentViewModel = MainVM;
 
             string token = string.Empty;
-            // Retry token acquisition to accommodate network establishing during PC boot
             for (int attempt = 0; attempt < 3; attempt++)
             {
                 token = await _authService.GetTokenAsync();
@@ -294,7 +290,6 @@ public partial class MainWindowViewModel : ViewModelBase
         var token = await _authService.LoginAsync();
         if (token == null)
         {
-            // Cancelled by another concurrent login attempt. Do nothing.
             return;
         }
         
@@ -307,7 +302,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
         IsAuthenticated = true;
         
-        // Navigate to Main View
         MainVM ??= new MainViewModel(this);
         CurrentViewModel = MainVM;
 
@@ -382,7 +376,6 @@ public partial class MainWindowViewModel : ViewModelBase
                 }
                 else if (selectedSet.Count == 0 && Tunnels.Count == 0)
                 {
-                    // Select first by default if nothing saved
                     tvm.IsSelected = true;
                 }
 
@@ -407,7 +400,6 @@ public partial class MainWindowViewModel : ViewModelBase
                         var newLog = $"[{timestamp}] [{tvm.Data.Name}] {msg}\n";
                         GlobalLogs += newLog;
                         
-                        // Keep logs reasonable
                         if (GlobalLogs.Length > 10000)
                         {
                             GlobalLogs = GlobalLogs.Substring(GlobalLogs.Length - 5000);

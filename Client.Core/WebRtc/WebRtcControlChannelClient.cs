@@ -8,13 +8,10 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using SIPSorcery.Net;
+using Client.Core.Services;
 
-namespace Client.Core.Services;
+namespace Client.Core.WebRtc;
 
-/// <summary>
-/// WebRTC DataChannel implementation of the control channel client.
-/// Used for peer-to-peer capabilities and NAT traversal when direct connections are needed.
-/// </summary>
 public class WebRtcControlChannelClient : IControlChannelClient
 {
     private RTCPeerConnection? _pc;
@@ -73,6 +70,10 @@ public class WebRtcControlChannelClient : IControlChannelClient
                         case "register_error":
                         case "rate_limited":
                             dto.Error = root.GetProperty("error").GetString();
+                            break;
+                        case "stream_error":
+                            dto.Error = root.TryGetProperty("error", out var seErr) ? seErr.GetString() : null;
+                            dto.StreamId = root.TryGetProperty("streamId", out var seId) ? seId.GetString() : null;
                             break;
                         case "register_ack":
                             dto.PublicUrl = root.GetProperty("publicUrl").GetString();
@@ -178,7 +179,6 @@ public class WebRtcControlChannelClient : IControlChannelClient
         };
         _pc.setRemoteDescription(remoteDesc);
 
-        // Wait for data channel to open
         var tcs = Task.WhenAny(_dataChannelOpen.Task, Task.Delay(15000, cancellationToken));
         await tcs;
         if (!_dataChannelOpen.Task.IsCompleted)

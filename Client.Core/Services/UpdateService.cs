@@ -11,24 +11,17 @@ using System.Threading.Tasks;
 
 namespace Client.Core.Services;
 
-/// <summary>
-/// Service responsible for checking and applying application updates.
-/// </summary>
 public class UpdateService
 {
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
 
-    /// <summary>
-    /// Gets the current running application version.
-    /// </summary>
     public static string CurrentVersion
     {
         get
         {
             try
             {
-                // 1. Check InformationalVersion from entry assembly
                 var infoVer = System.Reflection.Assembly.GetEntryAssembly()?
                     .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?
                     .InformationalVersion;
@@ -39,7 +32,6 @@ public class UpdateService
                     if (!string.IsNullOrEmpty(cleanVer)) return cleanVer;
                 }
 
-                // 2. Check appsettings.json
                 var configPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
                 if (!File.Exists(configPath) && File.Exists("appsettings.json")) configPath = "appsettings.json";
                 if (File.Exists(configPath))
@@ -54,7 +46,6 @@ public class UpdateService
                     }
                 }
 
-                // 3. Fallback to entry assembly version
                 var entryVer = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version;
                 if (entryVer != null && entryVer != new Version(0, 0, 0, 0))
                 {
@@ -63,7 +54,7 @@ public class UpdateService
             }
             catch { }
 
-            return "1.0.2r";
+            return "1.0.3r";
         }
     }
 
@@ -73,10 +64,6 @@ public class UpdateService
         _httpClient = new HttpClient();
     }
 
-    /// <summary>
-    /// Checks whether the latest version string is strictly newer than current version string.
-    /// Normalizes release suffixes like 'r' so identical versions (e.g. 1.0.2 and 1.0.2r) don't trigger updates.
-    /// </summary>
     public static bool IsVersionNewer(string latest, string current)
     {
         if (string.IsNullOrWhiteSpace(latest) || string.IsNullOrWhiteSpace(current))
@@ -114,7 +101,6 @@ public class UpdateService
             var result = await response.Content.ReadFromJsonAsync<UpdateCheckResult>();
             if (result != null && result.HasUpdate)
             {
-                // Verify client-side that the reported latest version is actually newer
                 if (!IsVersionNewer(result.LatestVersion, CurrentVersion))
                 {
                     result.HasUpdate = false;
@@ -157,7 +143,6 @@ public class UpdateService
         var downloaded = await DownloadUpdateWithProgressAsync(primaryUrl, fallbackUrl, targetFile, progress, cancellationToken);
         if (!downloaded || !File.Exists(targetFile))
         {
-            // If direct download failed, fallback to opening browser
             OpenUrl(resolvedPrimary.ToString());
             return false;
         }
@@ -349,9 +334,6 @@ public class UpdateService
 
 public readonly record struct UpdateProgress(long DownloadedBytes, long TotalBytes, double Percentage);
 
-/// <summary>
-/// Represents the result of an update check.
-/// </summary>
 public class UpdateCheckResult
 {
     [JsonPropertyName("hasUpdate")]

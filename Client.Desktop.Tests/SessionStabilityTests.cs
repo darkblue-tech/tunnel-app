@@ -60,7 +60,6 @@ public class SessionStabilityTests : IDisposable
     [Fact]
     public void IsTokenExpired_ReturnsTrue_WhenExpiringWithinSkew()
     {
-        // Token expires in 30 seconds, skew is 60 seconds -> should be treated as expired
         var nearExpiredToken = CreateMockJwt(DateTimeOffset.UtcNow.AddSeconds(30));
         Assert.True(AuthService.IsTokenExpired(nearExpiredToken, skewSeconds: 60));
     }
@@ -76,7 +75,6 @@ public class SessionStabilityTests : IDisposable
     [Fact]
     public void IsTokenExpired_HandlesMalformedString()
     {
-        // Malformed non-JWT string cannot be verified as expired statically
         Assert.False(AuthService.IsTokenExpired("not-a-jwt"));
     }
 
@@ -87,17 +85,14 @@ public class SessionStabilityTests : IDisposable
         await instance1.SaveSecretAsync("refresh_token", "rt_secret_value_12345");
         await instance1.SaveSecretAsync("theme", "Dark");
 
-        // Verify the file was physically created on disk
         var files = Directory.GetFiles(_testDir, "sec_*.dat");
         Assert.Equal(2, files.Length);
 
-        // Verify file contents are encrypted (not plain text)
         var rawBytes = await File.ReadAllBytesAsync(files[0]);
         var rawText = Encoding.UTF8.GetString(rawBytes);
         Assert.DoesNotContain("rt_secret_value_12345", rawText);
         Assert.DoesNotContain("Dark", rawText);
 
-        // Verify a new second instance correctly reads and decrypts the persisted secret
         var instance2 = new FallbackSecretStorageProvider(_testDir);
         var retrievedRt = await instance2.GetSecretAsync("refresh_token");
         var retrievedTheme = await instance2.GetSecretAsync("theme");
@@ -105,12 +100,23 @@ public class SessionStabilityTests : IDisposable
         Assert.Equal("rt_secret_value_12345", retrievedRt);
         Assert.Equal("Dark", retrievedTheme);
 
-        // Verify clearing removes the file
         await instance2.ClearSecretAsync("theme");
         var clearedTheme = await instance2.GetSecretAsync("theme");
         Assert.Null(clearedTheme);
 
         var remainingFiles = Directory.GetFiles(_testDir, "sec_*.dat");
         Assert.Single(remainingFiles);
+    }
+
+    private class TestViewModel : Client.Desktop.ViewModels.ViewModelBase { }
+
+    [Fact]
+    public void AppVersionDisplay_ResolvesProperVersion_NotUnknown()
+    {
+        var vm = new TestViewModel();
+        Assert.NotNull(vm.AppVersionDisplay);
+        Assert.NotEqual("Unknown Version", vm.AppVersionDisplay);
+        Assert.StartsWith("v", vm.AppVersionDisplay);
+        Assert.Contains("Fallen Angel", vm.AppVersionDisplay);
     }
 }

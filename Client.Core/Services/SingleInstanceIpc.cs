@@ -10,21 +10,11 @@ using System.Threading.Tasks;
 
 namespace Client.Core.Services;
 
-/// <summary>
-/// Provides Inter-Process Communication (IPC) to ensure only a single instance of the client runs.
-/// Routes arguments (like deep link authorization URIs) from subsequent instances to the primary instance.
-/// Uses dual-channel communication (Local TCP loopback + Named Pipes) to seamlessly bridge
-/// different process integrity levels (e.g. Administrator and Standard user on Windows).
-/// </summary>
 public static class SingleInstanceIpc
 {
     private const string PipeName = "darktunnel_ipc_pipe";
     private const string LegacyPipeName = "darkblue.tech Tunnel IPC";
 
-    /// <summary>
-    /// Event triggered when a subsequent instance is started or deep link is received,
-    /// requesting the primary UI to restore and activate.
-    /// </summary>
     public static event Action? WakeupRequested;
 
     private static string GetPortFilePath()
@@ -62,27 +52,20 @@ public static class SingleInstanceIpc
         return null;
     }
 
-    /// <summary>
-    /// Checks if a primary instance is running and forwards arguments to it.
-    /// </summary>
-    /// <returns>True if a primary instance was found and args were forwarded, otherwise false.</returns>
     public static bool CheckAndForwardArgs(string[] args)
     {
         var payload = GetPayloadFromArgs(args);
 
-        // 1. Try forwarding via local TCP loopback
         if (TryForwardViaTcp(payload))
         {
             return true;
         }
 
-        // 2. Try forwarding via primary Named Pipe
         if (TryForwardViaNamedPipe(PipeName, payload))
         {
             return true;
         }
 
-        // 3. Try forwarding via legacy Named Pipe
         if (TryForwardViaNamedPipe(LegacyPipeName, payload))
         {
             return true;
@@ -176,9 +159,6 @@ public static class SingleInstanceIpc
         }
     }
 
-    /// <summary>
-    /// Starts the IPC servers (TCP Loopback and Named Pipe) to listen for forwarded arguments.
-    /// </summary>
     public static void StartServer()
     {
         StartTcpServer();
@@ -287,9 +267,6 @@ public static class SingleInstanceIpc
         });
     }
 
-    /// <summary>
-    /// Processes an incoming IPC message or deep link payload.
-    /// </summary>
     public static void ProcessIncomingMessage(string message)
     {
         if (string.IsNullOrWhiteSpace(message)) return;
@@ -313,10 +290,6 @@ public static class SingleInstanceIpc
         WakeupRequested?.Invoke();
     }
 
-    /// <summary>
-    /// Robustly extracts OAuth authorization code from any darktunnel:// URI format.
-    /// Handles queries with or without trailing slashes, additional query parameters, and encoding.
-    /// </summary>
     public static string? ExtractAuthCode(string input)
     {
         if (string.IsNullOrWhiteSpace(input)) return null;
@@ -327,7 +300,6 @@ public static class SingleInstanceIpc
 
         try
         {
-            // Replace custom scheme with http:// so Uri reliably parses host, path, and query
             var httpEquivalent = "http://" + trimmed.Substring("darktunnel://".Length);
             var uri = new Uri(httpEquivalent);
             var query = uri.Query.TrimStart('?');
@@ -344,7 +316,6 @@ public static class SingleInstanceIpc
         }
         catch
         {
-            // Fallback string matching if Uri parsing encounters unconventional characters
             var codeIndex = trimmed.IndexOf("code=", StringComparison.OrdinalIgnoreCase);
             if (codeIndex >= 0)
             {

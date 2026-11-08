@@ -1,3 +1,7 @@
+using Client.Core.Grpc;
+using Client.Core.Quic;
+using Client.Core.WebRtc;
+using Client.Core.WebSocket;
 using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Net.WebSockets;
@@ -6,10 +10,6 @@ using System.Text.Json;
 
 namespace Client.Core.Services;
 
-/// <summary>
-/// The core engine responsible for orchestrating the tunnel connection, 
-/// managing protocols, and handling data streams.
-/// </summary>
 public class TunnelEngine
 {
     public event Action<string>? OnLog;
@@ -20,18 +20,24 @@ public class TunnelEngine
     private CancellationTokenSource? _lifetime;
     private bool _intentionalStop;
 
-    public async Task StartTunnelAsync(string serverUrl, string subdomain, string localHost, int localPort, int publicPort, string serverToken, string transport = "Auto")
+    public Task StartTunnelAsync(string serverUrl, string subdomain, string localHost, int localPort, int publicPort, string serverToken, string transport = "Auto")
+        => StartTunnelAsync(serverUrl, subdomain, localHost, localPort, publicPort, _ => Task.FromResult(serverToken), transport);
+
+    public async Task StartTunnelAsync(string serverUrl, string subdomain, string localHost, int localPort, int publicPort, Func<bool, Task<string>> tokenProvider, string transport = "Auto")
     {
         _lifetime = new CancellationTokenSource();
         _intentionalStop = false;
+        _tokenProvider = tokenProvider;
+        _forceTokenRefresh = false;
         
         int retryDelay = 1000;
         
         while (!_lifetime.IsCancellationRequested && !_intentionalStop)
         {
+            var connectedAt = DateTime.UtcNow;
             try
             {
-                await ConnectLoopAsync(serverUrl, subdomain, localHost, localPort, publicPort, serverToken, transport);
+                await ConnectLoopAsync(serverUrl, subdomain, localHost, localPort, publicPort, transport);
             }
             catch (Exception ex)
             {
@@ -43,6 +49,8 @@ public class TunnelEngine
 
             if (!_intentionalStop)
             {
+                if (DateTime.UtcNow - connectedAt > TimeSpan.FromMinutes(1)) retryDelay = 1000;
+
                 OnDisconnected?.Invoke();
                 Log($"Reconnecting in {retryDelay / 1000} seconds...");
                 try
@@ -56,17 +64,40 @@ public class TunnelEngine
         }
     }
 
+    private Func<bool, Task<string>>? _tokenProvider;
+    private bool _forceTokenRefresh;
+    private int _consecutiveAuthFailures;
+
     private async Task<(IControlChannelClient Client, ControlMessageDto FirstMsg)> TryConnectProtocolAsync(IControlChannelClient client, Uri uri, string serverToken)
     {
-        await client.ConnectAsync(uri, _lifetime!.Token);
-        await client.SendAuthAsync("desktop-avalonia", serverToken);
-        var msg = await client.ReceiveAsync(_lifetime!.Token);
-        if (msg == null) throw new Exception("Connection closed immediately after auth");
-        return (client, msg);
+        try
+        {
+            await client.ConnectAsync(uri, _lifetime!.Token);
+            await client.SendAuthAsync("desktop-avalonia", serverToken);
+            var msg = await client.ReceiveAsync(_lifetime!.Token);
+            if (msg == null) throw new Exception("Connection closed immediately after auth");
+            return (client, msg);
+        }
+        catch
+        {
+            try { await client.DisposeAsync(); } catch { }
+            throw;
+        }
     }
 
-    private async Task ConnectLoopAsync(string serverUrl, string subdomain, string localHost, int localPort, int publicPort, string serverToken, string transport)
+    private async Task ConnectLoopAsync(string serverUrl, string subdomain, string localHost, int localPort, int publicPort, string transport)
     {
+        var serverToken = await _tokenProvider!(_forceTokenRefresh);
+        _forceTokenRefresh = false;
+        if (string.IsNullOrEmpty(serverToken))
+        {
+            Log("No valid session token available.");
+            OnTokenExpired?.Invoke();
+            _intentionalStop = true;
+            _lifetime!.Cancel();
+            return;
+        }
+
         var streams = new ConcurrentDictionary<string, LocalStreamSession>();
         IControlChannelClient? client = null;
         ControlMessageDto? firstMsg = null;
@@ -100,7 +131,7 @@ public class TunnelEngine
                 }
                 else if (t == "gRPC")
                 {
-                    var grpcClient = new Client.Core.Grpc.ControlChannelGrpcClient();
+                    var grpcClient = new ControlChannelGrpcClient();
                     var res = await TryConnectProtocolAsync(grpcClient, httpsUri, serverToken);
                     client = res.Client;
                     firstMsg = res.FirstMsg;
@@ -157,6 +188,7 @@ public class TunnelEngine
             {
                 case "auth_ok":
                     Log($"Auth OK: {message.ClientId}");
+                    _consecutiveAuthFailures = 0;
                     if (!isRegistered)
                     {
                         await client.SendRegisterTunnelAsync(subdomain, localHost, localPort, publicPort);
@@ -166,6 +198,11 @@ public class TunnelEngine
                     break;
                 case "auth_error":
                     Log($"Auth failed: {message.Error}");
+                    if ((message.Error == "token_expired" || message.Error == "token_invalid") && ++_consecutiveAuthFailures <= 3)
+                    {
+                        _forceTokenRefresh = true;
+                        return;
+                    }
                     if (message.Error == "token_expired" || message.Error == "token_invalid")
                     {
                         OnTokenExpired?.Invoke();
@@ -222,6 +259,17 @@ public class TunnelEngine
                             await session.CloseAsync();
                             OnConnectionCountChanged?.Invoke(streams.Count);
                             Log($"Stream closed by server: {streamId}");
+                        }
+                        break;
+                    }
+                case "stream_error":
+                    {
+                        var streamId = message.StreamId;
+                        Log($"Stream error from server: {message.Error ?? "unknown"} (stream {streamId})");
+                        if (streamId != null && streams.TryRemove(streamId, out var failed))
+                        {
+                            await failed.CloseAsync();
+                            OnConnectionCountChanged?.Invoke(streams.Count);
                         }
                         break;
                     }
@@ -295,7 +343,7 @@ internal sealed class LocalStreamSession
 
         try
         {
-            _localClient = new TcpClient();
+            _localClient = new TcpClient { NoDelay = true };
             await _localClient.ConnectAsync(_localHost, _localPort);
             _localStream = _localClient.GetStream();
 

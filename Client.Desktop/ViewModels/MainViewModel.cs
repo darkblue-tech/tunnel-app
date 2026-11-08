@@ -90,7 +90,6 @@ public partial class MainViewModel : ViewModelBase
 
     private void UpdateActiveCount()
     {
-        // Simple logic for UI. Real app might track individual connection states
         ActiveTunnelsCount = Tunnels.Count;
         TunnelsCounterText = $"{ActiveTunnelsCount} / ∞";
     }

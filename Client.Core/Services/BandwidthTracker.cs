@@ -6,25 +6,20 @@ using System.Threading.Tasks;
 
 namespace Client.Core.Services;
 
-/// <summary>
-/// Tracks network bandwidth (Rx and Tx) and provides historical data for graphing.
-/// </summary>
 public static class BandwidthTracker
 {
     private static long _rxBytes;
     private static long _txBytes;
     
-    // Using a concurrent queue to store history points. Max 60 items for 1 minute.
     public static ConcurrentQueue<double> RxHistory { get; } = new();
     public static ConcurrentQueue<double> TxHistory { get; } = new();
 
-    public static event Action<double, double>? OnTick; // Returns Rx KB/s, Tx KB/s
+    public static event Action<double, double>? OnTick; // Rx KB/s, Tx KB/s
 
     private static readonly CancellationTokenSource _cts = new();
 
     static BandwidthTracker()
     {
-        // Pre-fill history with 0
         for (int i = 0; i < 60; i++)
         {
             RxHistory.Enqueue(0);
