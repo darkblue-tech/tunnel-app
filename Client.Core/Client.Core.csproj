@@ -16,7 +16,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
-    <PackageReference Include="Microsoft.Native.Quic.MsQuic.Schannel" Version="2.5.9" />
+    <PackageReference Include="Microsoft.Native.Quic.MsQuic.Schannel" Version="2.5.12" />
     <PackageReference Include="SIPSorcery" Version="10.0.16" />
   </ItemGroup>
 
