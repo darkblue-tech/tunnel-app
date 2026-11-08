@@ -265,9 +265,9 @@ public class TunnelEngine
                 case "stream_error":
                     {
                         var streamId = message.StreamId;
-                        Log($"Stream error from server: {message.Error ?? "unknown"} (stream {streamId})");
                         if (streamId != null && streams.TryRemove(streamId, out var failed))
                         {
+                            Log($"Stream {streamId} closed with error: {message.Error ?? "unknown"}");
                             await failed.CloseAsync();
                             OnConnectionCountChanged?.Invoke(streams.Count);
                         }

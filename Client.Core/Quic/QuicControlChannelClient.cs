@@ -30,7 +30,25 @@ public class QuicControlChannelClient : IControlChannelClient
         var host = uri.Host;
         var port = uri.Port > 0 ? uri.Port : 443;
         
-        var endpoint = new DnsEndPoint(host, port);
+        EndPoint endpoint;
+        if (IPAddress.TryParse(host, out var parsedIp))
+        {
+            endpoint = new IPEndPoint(parsedIp, port);
+        }
+        else
+        {
+            try
+            {
+                var ips = await Dns.GetHostAddressesAsync(host, cancellationToken);
+                var preferredIp = ips.FirstOrDefault(ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                                  ?? ips.FirstOrDefault();
+                endpoint = preferredIp != null ? new IPEndPoint(preferredIp, port) : new DnsEndPoint(host, port);
+            }
+            catch
+            {
+                endpoint = new DnsEndPoint(host, port);
+            }
+        }
 
         var options = new QuicClientConnectionOptions
         {

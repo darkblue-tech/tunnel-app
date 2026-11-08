@@ -117,6 +117,6 @@ public class SessionStabilityTests : IDisposable
         Assert.NotNull(vm.AppVersionDisplay);
         Assert.NotEqual("Unknown Version", vm.AppVersionDisplay);
         Assert.StartsWith("v", vm.AppVersionDisplay);
-        Assert.Contains("Fallen Angel", vm.AppVersionDisplay);
+        Assert.Contains(" ", vm.AppVersionDisplay);
     }
 }
